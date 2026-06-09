@@ -21,7 +21,7 @@ from cpkit.errors import (
     RepositoryValidationError,
 )
 
-DB_URL = os.getenv("DB_URL")
+CPKIT_DB_URL = os.getenv("CPKIT_DB_URL")
 pool: ConnectionPool | None = None
 logger = logging.getLogger(__name__)
 
@@ -135,9 +135,9 @@ def _normalize_stmt(stmt: str) -> str:
 def initialize_postgres(db_url: str | None = None) -> None:
     global pool
 
-    effective_db_url = db_url or DB_URL
+    effective_db_url = db_url or CPKIT_DB_URL
     if not effective_db_url:
-        raise EnvironmentError("DB_URL env variable not found!")
+        raise EnvironmentError("CPKIT_DB_URL env variable not found!")
 
     if pool is not None:
         return

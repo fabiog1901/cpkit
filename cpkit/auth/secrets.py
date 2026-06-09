@@ -7,7 +7,7 @@ import secrets
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 ENCRYPTED_SECRET_VERSION = b"\x01"
-DEFAULT_MASTER_KEY_ENV_VAR = "API_KEY_MASTER_KEY"
+DEFAULT_MASTER_KEY_ENV_VAR = "CPKIT_MASTER_KEY"
 
 
 def validate_secret_crypto_config(

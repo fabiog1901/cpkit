@@ -1,0 +1,33 @@
+[project]
+name = "todo-app"
+version = "0.1.0"
+description = "Small cpkit example app with TODOs and an export job."
+requires-python = ">=3.14"
+dependencies = [
+    "cpkit",
+]
+
+[project.scripts]
+todo = "cpkit.cli:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+cpkit = {path = "../..", develop = true}
+
+[tool.cpkit]
+app_import = "todo_app.main:app"
+ddl = [
+    "resources/ddl.sql",
+]
+schema_checks = [
+    "public.todos",
+]
+
+[tool.black]
+target-version = ["py314"]
+
+[tool.isort]
+profile = "black"

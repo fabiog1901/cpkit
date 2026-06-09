@@ -21,7 +21,7 @@ class ApplicationCLI:
         app_import: str,
         app_ddl_paths: Sequence[str | Path] = (),
         app_schema_checks: Sequence[str] = (),
-        db_url_env: str = "DB_URL",
+        db_url_env: str = "CPKIT_DB_URL",
         cpkit_ddl_path: str | Path | None = None,
         project_root: str | Path | None = None,
     ) -> None:
@@ -66,12 +66,18 @@ class ApplicationCLI:
             os.getenv("CPKIT_SCHEMA_CHECKS"),
             cpkit_config.get("schema_checks"),
         )
+        db_url_env = (
+            os.getenv("CPKIT_DB_URL_ENV")
+            or cpkit_config.get("db_url_env")
+            or "CPKIT_DB_URL"
+        )
         cpkit_ddl = cpkit_config.get("cpkit_ddl")
         return cls(
             app_name=effective_app_name,
             app_import=app_import,
             app_ddl_paths=ddl_paths,
             app_schema_checks=schema_checks,
+            db_url_env=db_url_env,
             cpkit_ddl_path=(root / cpkit_ddl) if cpkit_ddl else None,
             project_root=root,
         )

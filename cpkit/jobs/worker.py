@@ -49,9 +49,9 @@ def create_queue_worker(
     async def pull_from_mq() -> None:
         await run_queue_worker(
             get_pool=get_pool,
-            handlers=handlers,
             resolve_handler=_resolve_worker_handler(
                 maintenance_handlers,
+                handlers,
                 resolve_handler,
             ),
             parse_message=_parse_worker_message(
@@ -66,12 +66,17 @@ def create_queue_worker(
 
 def _resolve_worker_handler(
     maintenance_handlers: Mapping[str, QueueHandler],
+    handlers: Mapping[Any, QueueHandler] | None,
     resolve_handler: ResolveHandler | None,
 ) -> ResolveHandler:
     def resolve(message: QueueMessage) -> QueueHandler | None:
         handler = maintenance_handlers.get(message.msg_type)
         if handler is not None:
             return handler
+        if handlers is not None:
+            handler = handlers.get(message.msg_type)
+            if handler is not None:
+                return handler
         if resolve_handler is None:
             return None
         return resolve_handler(message)
