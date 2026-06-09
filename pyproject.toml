@@ -27,6 +27,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 include = [
     {path = "resources/ddl.sql", format = ["sdist", "wheel"]},
+    {path = "cpkit/webapp", format = ["sdist", "wheel"]},
 ]
 
 [tool.black]

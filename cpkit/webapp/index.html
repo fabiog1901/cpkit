@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>cpkit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/style.css" />
+  <script defer src="/script.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/mode-yaml.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/theme-cobalt.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body>
+  <div class="page" x-data="app()" x-init="init()">
+    <div class="auth-check" x-show="!authChecked">Checking session...</div>
+
+    <div class="login-panel" x-show="authChecked && !isAuthenticated">
+      <div class="brand-row">
+        <div class="logo-pill">ck</div>
+        <div>
+          <h1>cpkit</h1>
+          <p>Authenticate to access the dashboard</p>
+        </div>
+      </div>
+      <div class="notice danger" x-show="authError" x-text="authError"></div>
+      <button type="button" class="btn primary" @click="loginWithSSO()">Login with SSO</button>
+    </div>
+
+    <div class="app-shell" x-show="authChecked && isAuthenticated">
+      <header class="topbar">
+        <div class="topbar-title">
+          <div class="logo-pill">ck</div>
+          <div>
+            <h1>cpkit</h1>
+            <div class="topbar-sub" x-text="viewSubtitle()"></div>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <nav class="topbar-nav" aria-label="Primary">
+            <a href="#" class="pill" :class="{ 'pill-accent': view === 'dashboard' }"
+              @click.prevent="setView('dashboard')">Dashboard</a>
+            <a href="#" class="pill" :class="{ 'pill-accent': view === 'jobs' || view === 'job' }"
+              @click.prevent="setView('jobs')">Jobs</a>
+            <a href="#" class="pill" :class="{ 'pill-accent': view === 'events' }"
+              @click.prevent="setView('events')">Events</a>
+            <a href="#" class="pill" :class="{ 'pill-accent': isAdminSectionView() }" x-show="canViewAdmin()"
+              @click.prevent="setView('admin')">Admin</a>
+          </nav>
+
+          <button type="button" class="user-chip" @click="openUserInfoModal()" :title="userIconTitle()">
+            <span class="user-chip-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5Z"
+                  stroke="currentColor" stroke-width="1.8" />
+                <path d="M3 21c0-4.42 3.58-8 8-8h2c4.42 0 8 3.58 8 8" stroke="currentColor"
+                  stroke-width="1.8" />
+              </svg>
+            </span>
+            <span class="user-chip-name" x-text="userDisplayName()"></span>
+          </button>
+        </div>
+      </header>
+
+      <div class="notice warn" x-show="viewNotice">
+        <span x-text="viewNotice"></span>
+        <a href="#" class="link-inline" x-show="viewNoticeJobId" @click.prevent="openJob(viewNoticeJobId)">
+          Open Job <span x-text="viewNoticeJobId"></span>
+        </a>
+      </div>
+
+      <main class="layout dashboard-layout" x-show="view === 'dashboard'">
+        <aside class="sidebar">
+          <section>
+            <h2>Quick Links</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="setView('jobs')">Open Jobs</button>
+              <button class="btn" @click="setView('events')">Open Events</button>
+              <button class="btn" x-show="canViewAdmin()" @click="setView('admin')">Open Admin</button>
+            </div>
+          </section>
+
+          <section>
+            <h2>External</h2>
+            <div class="metric button-stack">
+              <a class="link-inline" href="/api/docs" target="_blank" rel="noopener">Open API docs</a>
+              <a class="link-inline" href="/api/openapi.json" target="_blank" rel="noopener">Open OpenAPI JSON</a>
+            </div>
+          </section>
+        </aside>
+
+        <section class="main dashboard-main">
+          <div class="dashboard-grid">
+            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('jobs')">
+              <div class="dashboard-card-head">
+                <div>
+                  <div class="dashboard-card-kicker">Orchestration</div>
+                  <h3>Jobs</h3>
+                </div>
+                <div class="dashboard-stat" x-text="jobStats.total"></div>
+              </div>
+              <div class="dashboard-kv-grid">
+                <div class="dashboard-kv">
+                  <div class="dashboard-kv-label">Running</div>
+                  <div class="dashboard-kv-value" x-text="jobStats.running"></div>
+                </div>
+                <div class="dashboard-kv">
+                  <div class="dashboard-kv-label">Queued</div>
+                  <div class="dashboard-kv-value" x-text="jobStats.queued"></div>
+                </div>
+                <div class="dashboard-kv">
+                  <div class="dashboard-kv-label">Failed</div>
+                  <div class="dashboard-kv-value" x-text="jobStats.failed"></div>
+                </div>
+                <div class="dashboard-kv">
+                  <div class="dashboard-kv-label">Last sync</div>
+                  <div class="dashboard-kv-value small" x-text="jobsLastUpdatedUtc || '-'"></div>
+                </div>
+              </div>
+            </button>
+
+            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('events')">
+              <div class="dashboard-card-head">
+                <div>
+                  <div class="dashboard-card-kicker">Audit</div>
+                  <h3>Events</h3>
+                </div>
+                <div class="dashboard-stat" x-text="events.length"></div>
+              </div>
+              <div class="dashboard-feed-list compact">
+                <template x-for="event in recentEvents(4)" :key="`${event.ts}-${event.user_id}-${event.action}`">
+                  <div class="dashboard-feed-item">
+                    <div class="dashboard-feed-title" x-text="event.action || '-'"></div>
+                    <div class="dashboard-feed-meta">
+                      <span x-text="event.user_id || 'unknown user'"></span>
+                      <span x-text="relativeTimeFromNow(event.ts)"></span>
+                    </div>
+                  </div>
+                </template>
+                <div class="empty-mini" x-show="events.length === 0">No recent events.</div>
+              </div>
+            </button>
+          </div>
+
+          <div class="dashboard-grid dashboard-admin-grid" x-show="canViewAdmin()">
+            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('api_keys')">
+              <div class="dashboard-card-kicker">Security</div>
+              <h3>API Keys</h3>
+              <p>Issue and revoke HMAC API credentials.</p>
+            </button>
+            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('settings')">
+              <div class="dashboard-card-kicker">Configuration</div>
+              <h3>Settings</h3>
+              <p>Manage framework settings stored in the repository.</p>
+            </button>
+            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('playbooks')">
+              <div class="dashboard-card-kicker">Automation</div>
+              <h3>Playbooks</h3>
+              <p>Edit playbook versions used by cpkit jobs.</p>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <main class="layout" x-show="view === 'jobs'">
+        <aside class="sidebar">
+          <section>
+            <h2>Jobs</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="refreshJobs()">Refresh</button>
+              <label class="check-row">
+                <input type="checkbox" x-model="jobsAutoRefreshEnabled" />
+                Auto-refresh
+              </label>
+            </div>
+          </section>
+          <section>
+            <h2>Filter</h2>
+            <input class="input" type="search" x-model="jobsFilterQuery" @input="applyJobsFilterSort()"
+              placeholder="Search jobs" />
+          </section>
+        </aside>
+        <section class="main">
+          <div class="section-head">
+            <div>
+              <h2>Jobs</h2>
+              <p>Queued, running, and completed framework jobs.</p>
+            </div>
+            <div class="timestamp" x-text="jobsLastUpdatedUtc || '-'"></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th @click="sortJobs(0)" :class="jobsSortClass(0)">ID</th>
+                  <th @click="sortJobs(1)" :class="jobsSortClass(1)">Type</th>
+                  <th @click="sortJobs(2)" :class="jobsSortClass(2)">Status</th>
+                  <th @click="sortJobs(3)" :class="jobsSortClass(3)">Created by</th>
+                  <th @click="sortJobs(4)" :class="jobsSortClass(4)">Created</th>
+                  <th @click="sortJobs(5)" :class="jobsSortClass(5)">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="job in jobsVisibleRows" :key="job.job_id">
+                  <tr @click="openJob(job.job_id)" class="clickable-row">
+                    <td x-text="job.job_id"></td>
+                    <td x-text="job.job_type || '-'"></td>
+                    <td><span class="status-pill" :class="statusClass(job.status)" x-text="job.status || '-'"></span></td>
+                    <td x-text="job.created_by || '-'"></td>
+                    <td x-text="toUtcStringMaybe(job.created_at)"></td>
+                    <td x-text="toUtcStringMaybe(job.updated_at)"></td>
+                  </tr>
+                </template>
+                <tr x-show="jobsVisibleRows.length === 0">
+                  <td colspan="6" class="empty-cell">No jobs found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <main class="layout" x-show="view === 'job'">
+        <aside class="sidebar">
+          <section>
+            <h2>Job</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="setView('jobs')">Back to Jobs</button>
+              <button class="btn" @click="refreshSelectedJobDetails()">Refresh</button>
+              <button class="btn" @click="rescheduleSelectedJob()" :disabled="jobLoading.reschedule">
+                <span x-show="!jobLoading.reschedule">Reschedule</span>
+                <span x-show="jobLoading.reschedule">Rescheduling...</span>
+              </button>
+            </div>
+          </section>
+        </aside>
+        <section class="main">
+          <div class="section-head">
+            <div>
+              <h2>Job <span x-text="selectedJobId"></span></h2>
+              <p x-text="selectedJobDetails?.job?.job_type || selectedJobDetails?.job_type || 'Job details'"></p>
+            </div>
+          </div>
+          <pre class="json-panel" x-text="formatJson(selectedJobDetails)"></pre>
+        </section>
+      </main>
+
+      <main class="layout" x-show="view === 'events'">
+        <aside class="sidebar">
+          <section>
+            <h2>Events</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="refreshEvents()">Refresh</button>
+              <label class="check-row">
+                <input type="checkbox" x-model="eventsAutoRefreshEnabled" />
+                Auto-refresh
+              </label>
+            </div>
+          </section>
+          <section>
+            <h2>Filter</h2>
+            <input class="input" type="search" x-model="eventsFilterQuery" @input="applyEventsFilterSort()"
+              placeholder="Search events" />
+          </section>
+        </aside>
+        <section class="main">
+          <div class="section-head">
+            <div>
+              <h2>Events</h2>
+              <p>Framework audit log.</p>
+            </div>
+            <div class="timestamp" x-text="eventsLastUpdatedUtc || '-'"></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th @click="sortEvents(0)" :class="eventsSortClass(0)">Time</th>
+                  <th @click="sortEvents(1)" :class="eventsSortClass(1)">User</th>
+                  <th @click="sortEvents(2)" :class="eventsSortClass(2)">Action</th>
+                  <th>Details</th>
+                  <th>Request</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="event in eventsVisibleRows" :key="`${event.ts}-${event.user_id}-${event.action}`">
+                  <tr>
+                    <td x-text="toUtcStringMaybe(event.ts)"></td>
+                    <td x-text="event.user_id || '-'"></td>
+                    <td><span class="status-pill neutral" x-text="event.action || '-'"></span></td>
+                    <td x-text="detailsText(event.details)"></td>
+                    <td x-text="event.request_id || '-'"></td>
+                  </tr>
+                </template>
+                <tr x-show="eventsVisibleRows.length === 0">
+                  <td colspan="5" class="empty-cell">No events found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <main class="layout" x-show="view === 'admin'">
+        <aside class="sidebar">
+          <section>
+            <h2>Admin</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="setView('api_keys')">API Keys</button>
+              <button class="btn" @click="setView('settings')">Settings</button>
+              <button class="btn" @click="setView('playbooks')">Playbooks</button>
+            </div>
+          </section>
+        </aside>
+        <section class="main">
+          <div class="section-head">
+            <div>
+              <h2>Admin</h2>
+              <p>Framework-owned administration surfaces.</p>
+            </div>
+          </div>
+          <div class="dashboard-grid dashboard-admin-grid">
+            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('api_keys')">
+              <div class="dashboard-card-kicker">Security</div>
+              <h3>API Keys</h3>
+              <p>Manage API credentials.</p>
+            </button>
+            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('settings')">
+              <div class="dashboard-card-kicker">Configuration</div>
+              <h3>Settings</h3>
+              <p>Update settings and reset defaults.</p>
+            </button>
+            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('playbooks')">
+              <div class="dashboard-card-kicker">Automation</div>
+              <h3>Playbooks</h3>
+              <p>Edit versioned playbook content.</p>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <main class="layout" x-show="view === 'api_keys'">
+        <aside class="sidebar">
+          <section>
+            <h2>API Keys</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="refreshApiKeys()">Refresh</button>
+              <button class="btn primary" @click="openApiKeyCreateModal()">Create Key</button>
+            </div>
+          </section>
+          <section>
+            <h2>Filter</h2>
+            <input class="input" type="search" x-model="apiKeysFilterQuery" @input="applyApiKeysFilterSort()"
+              placeholder="Search keys" />
+          </section>
+        </aside>
+        <section class="main">
+          <div class="section-head">
+            <div>
+              <h2>API Keys</h2>
+              <p>HMAC credentials for programmatic access.</p>
+            </div>
+            <div class="timestamp" x-text="apiKeysLastUpdatedUtc || '-'"></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Access key</th>
+                  <th>Owner</th>
+                  <th>Valid until</th>
+                  <th>Roles</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="row in apiKeysVisibleRows" :key="row.access_key">
+                  <tr>
+                    <td x-text="row.access_key"></td>
+                    <td x-text="row.owner || '-'"></td>
+                    <td x-text="toUtcStringMaybe(row.valid_until)"></td>
+                    <td x-text="rolesText(row.roles)"></td>
+                    <td><button class="btn danger" @click="deleteApiKey(row.access_key)">Delete</button></td>
+                  </tr>
+                </template>
+                <tr x-show="apiKeysVisibleRows.length === 0">
+                  <td colspan="5" class="empty-cell">No API keys found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <main class="layout" x-show="view === 'settings'">
+        <aside class="sidebar">
+          <section>
+            <h2>Settings</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="refreshSettings()">Refresh</button>
+              <label class="check-row">
+                <input type="checkbox" x-model="settingsAutoRefreshEnabled" />
+                Auto-refresh
+              </label>
+            </div>
+          </section>
+          <section>
+            <h2>Filter</h2>
+            <input class="input" type="search" x-model="settingsFilterQuery" @input="applySettingsFilterSort()"
+              placeholder="Search settings" />
+          </section>
+          <section>
+            <h2>Category</h2>
+            <div class="chip-list">
+              <button class="chip" :class="{ active: settingsCategoryTab === 'all' }"
+                @click="setSettingsCategory('all')">All</button>
+              <template x-for="category in settingsCategories()" :key="category">
+                <button class="chip" :class="{ active: settingsCategoryTab === category }"
+                  @click="setSettingsCategory(category)" x-text="category"></button>
+              </template>
+            </div>
+          </section>
+        </aside>
+        <section class="main">
+          <div class="section-head">
+            <div>
+              <h2>Settings</h2>
+              <p>Dynamic framework configuration.</p>
+            </div>
+            <div class="timestamp" x-text="settingsLastUpdatedUtc || '-'"></div>
+          </div>
+          <div class="notice" :class="{ danger: !settingsToast.ok, success: settingsToast.ok }"
+            x-show="settingsToast.message" x-text="settingsToast.message"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Type</th>
+                  <th>Value</th>
+                  <th>Default</th>
+                  <th>Updated</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="row in settingsVisibleRows" :key="row.key">
+                  <tr>
+                    <td>
+                      <div class="strong" x-text="row.key"></div>
+                      <div class="muted" x-text="row.description || ''"></div>
+                    </td>
+                    <td x-text="row.value_type || '-'"></td>
+                    <td><input class="input table-input" :type="row.is_secret ? 'password' : 'text'"
+                        :value="settingDraftValue(row)" @input="setSettingDraft(row.key, $event.target.value)" /></td>
+                    <td x-text="row.is_secret ? 'secret' : (row.default_value ?? '')"></td>
+                    <td x-text="toUtcStringMaybe(row.updated_at)"></td>
+                    <td class="row-actions">
+                      <button class="btn" @click="saveSetting(row.key)">Save</button>
+                      <button class="btn" @click="resetSetting(row.key)">Reset</button>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="settingsVisibleRows.length === 0">
+                  <td colspan="6" class="empty-cell">No settings found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <main class="layout" x-show="view === 'playbooks'">
+        <aside class="sidebar">
+          <section>
+            <h2>Playbooks</h2>
+            <div class="metric button-stack">
+              <input class="input" x-model="selectedPlaybook" placeholder="PLAYBOOK_NAME" />
+              <button class="btn" @click="loadPlaybookSelection(selectedPlaybook)">Load</button>
+              <button class="btn primary" @click="savePlaybook()">Save</button>
+            </div>
+          </section>
+          <section>
+            <h2>Versions</h2>
+            <select class="input" x-model="pbSelectedVersion" @change="onSelectPlaybookVersion()">
+              <option value="">Select version</option>
+              <template x-for="version in pbVersions" :key="version">
+                <option :value="version" x-text="version"></option>
+              </template>
+            </select>
+            <div class="button-stack">
+              <button class="btn" @click="setDefaultPlaybookVersion()">Set Default</button>
+              <button class="btn danger" @click="deletePlaybookVersion()">Delete Version</button>
+            </div>
+          </section>
+        </aside>
+        <section class="main">
+          <div class="section-head">
+            <div>
+              <h2>Playbooks</h2>
+              <p>Versioned automation content.</p>
+            </div>
+            <div class="timestamp" x-text="pbLastUpdatedUtc || '-'"></div>
+          </div>
+          <div class="notice" :class="{ danger: !pbToast.ok, success: pbToast.ok }" x-show="pbToast.message"
+            x-text="pbToast.message"></div>
+          <div class="editor" x-ref="aceContainer"></div>
+        </section>
+      </main>
+
+      <div class="modal-backdrop" x-show="modal.userInfo.open" @click.self="closeUserInfoModal()">
+        <div class="modal">
+          <div class="modal-head">
+            <h2>User</h2>
+            <button class="icon-btn" @click="closeUserInfoModal()">x</button>
+          </div>
+          <dl class="details-list">
+            <dt>Display</dt>
+            <dd x-text="userDisplayName()"></dd>
+            <dt>Roles</dt>
+            <dd x-text="authRoles().join(', ') || '-'"></dd>
+            <dt>Groups</dt>
+            <dd x-text="authGroups().join(', ') || '-'"></dd>
+          </dl>
+          <pre class="json-panel small" x-text="formatJson(authClaimsWithoutCookies())"></pre>
+          <div class="modal-actions">
+            <button class="btn" @click="refreshAuthMeSnapshot()">Refresh</button>
+            <button class="btn danger" @click="logout()">Logout</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-backdrop" x-show="modal.apiKeyCreate.open" @click.self="closeApiKeyCreateModal()">
+        <div class="modal">
+          <div class="modal-head">
+            <h2>Create API Key</h2>
+            <button class="icon-btn" @click="closeApiKeyCreateModal()">x</button>
+          </div>
+          <label class="field-label">Valid until</label>
+          <input class="input" type="datetime-local" x-model="modal.apiKeyCreate.valid_until" />
+          <label class="field-label">Roles</label>
+          <input class="input" x-model="modal.apiKeyCreate.rolesText" placeholder="CP_ADMIN, CP_USER" />
+          <div class="notice danger" x-show="modalError.apiKeyCreate" x-text="modalError.apiKeyCreate"></div>
+          <pre class="json-panel small" x-show="modal.apiKeyCreate.created"
+            x-text="formatJson(modal.apiKeyCreate.created)"></pre>
+          <div class="modal-actions">
+            <button class="btn" @click="closeApiKeyCreateModal()">Close</button>
+            <button class="btn primary" @click="createApiKey()" :disabled="apiKeysLoading.create">Create</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

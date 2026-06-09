@@ -15,6 +15,7 @@ from .dependencies import (
 )
 from .repository import CPKitRepo, configure_repository, get_repo
 from .time import STRFTIME, TS_FORMAT
+from .webapp import template_webapp_directory
 
 __all__ = [
     "CPKitRepo",
@@ -34,4 +35,5 @@ __all__ = [
     "require_authenticated",
     "require_readonly",
     "require_user",
+    "template_webapp_directory",
 ]
