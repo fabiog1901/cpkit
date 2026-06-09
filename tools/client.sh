@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# export CP_ACCESS_KEY="cp-MUt8N_utF_6l6G0rHnoFEw"
-# export CP_SECRET_ACCESS_KEY="ny5KfSDqg128QJMw-3EX0Ml6YZAOIbmVUxshWXTW3dc"
+# export CP_ACCESS_KEY="cp-QKBHjDrilMwxU-VgriOLLQ"
+# export CP_SECRET_ACCESS_KEY="4Yoo_Un85jZDuKvHeW3c0A3aJVLNqGQjU3dld9r57Q8"
 
-
-API_URL="http://localhost:8000/api/admin/versions/"
+# this endpoint requres CP_ADMIN permission
+# so it's a good test for validating role mappings
+API_URL="http://localhost:8000/api/admin/settings/"
 
 # --- 1. Extract Path and Query from URL ---
 # We use 'cut' to separate the protocol/host from the path/query

@@ -80,222 +80,30 @@ INSERT INTO cpkit.settings (
     description
 )
 VALUES
-    (
-        'auth.api_key_signature_ttl_seconds',
-        NULL,
-        '300',
-        'integer',
-        'auth',
-        false,
-        'Maximum accepted age, in seconds, for signed API key requests.'
-    ),
-    (
-        'logging.journald_identifier',
-        NULL,
-        '',
-        'string',
-        'logging',
-        false,
-        'Optional journald SYSLOG_IDENTIFIER. When blank, the application default is used.'
-    ),
-    (
-        'logging.level',
-        NULL,
-        'INFO',
-        'string',
-        'logging',
-        false,
-        'Root logging level used by cpkit logging setup.'
-    ),
-    (
-        'oidc.cache_ttl_seconds',
-        NULL,
-        '300',
-        'integer',
-        'oidc',
-        false,
-        'OIDC provider metadata and JWKS cache TTL, in seconds.'
-    ),
-    (
-        'oidc.enabled',
-        NULL,
-        'false',
-        'boolean',
-        'oidc',
-        false,
-        'Enable browser OIDC authentication.'
-    ),
-    (
-        'oidc.issuer_url',
-        NULL,
-        '',
-        'string',
-        'oidc',
-        false,
-        'OIDC issuer URL.'
-    ),
-    (
-        'oidc.client_id',
-        NULL,
-        '',
-        'string',
-        'oidc',
-        false,
-        'OIDC client ID.'
-    ),
-    (
-        'oidc.client_secret',
-        NULL,
-        '',
-        'string',
-        'oidc',
-        true,
-        'OIDC client secret.'
-    ),
-    (
-        'oidc.scopes',
-        NULL,
-        'openid profile email offline_access',
-        'string',
-        'oidc',
-        false,
-        'Space-delimited OIDC scopes requested during login.'
-    ),
-    (
-        'oidc.audience',
-        NULL,
-        '',
-        'string',
-        'oidc',
-        false,
-        'Optional expected JWT audience.'
-    ),
-    (
-        'oidc.extra_auth_params',
-        NULL,
-        '{}',
-        'json',
-        'oidc',
-        false,
-        'Additional authorization request parameters as a JSON object.'
-    ),
-    (
-        'oidc.redirect_uri',
-        NULL,
-        '',
-        'string',
-        'oidc',
-        false,
-        'OIDC redirect URI. Leave blank to derive it from the incoming request.'
-    ),
-    (
-        'oidc.login_path',
-        NULL,
-        '/api/auth/login',
-        'string',
-        'oidc',
-        false,
-        'Login path used when redirecting unauthenticated browser requests.'
-    ),
-    (
-        'oidc.session_max_age_seconds',
-        NULL,
-        '2592000',
-        'integer',
-        'oidc',
-        false,
-        'Maximum OIDC session lifetime, in seconds.'
-    ),
-    (
-        'oidc.refresh_leeway_seconds',
-        NULL,
-        '60',
-        'integer',
-        'oidc',
-        false,
-        'Seconds before token expiry when refresh should be attempted.'
-    ),
-    (
-        'oidc.cookie_secure',
-        NULL,
-        'false',
-        'boolean',
-        'oidc',
-        false,
-        'Whether OIDC cookies require HTTPS.'
-    ),
-    (
-        'oidc.cookie_samesite',
-        NULL,
-        'lax',
-        'string',
-        'oidc',
-        false,
-        'SameSite value for OIDC cookies: lax, strict, or none.'
-    ),
-    (
-        'oidc.cookie_domain',
-        NULL,
-        '',
-        'string',
-        'oidc',
-        false,
-        'Optional OIDC cookie domain.'
-    ),
-    (
-        'oidc.verify_audience',
-        NULL,
-        'false',
-        'boolean',
-        'oidc',
-        false,
-        'Whether ID token audience validation is required.'
-    ),
-    (
-        'oidc.ui_username_claim',
-        NULL,
-        'preferred_username',
-        'string',
-        'oidc',
-        false,
-        'JWT claim used as the display/audit username.'
-    ),
-    (
-        'oidc.authz_readonly_groups',
-        NULL,
-        '',
-        'csv',
-        'oidc',
-        false,
-        'Comma-delimited IdP groups mapped to the CP_READONLY role.'
-    ),
-    (
-        'oidc.authz_user_groups',
-        NULL,
-        '',
-        'csv',
-        'oidc',
-        false,
-        'Comma-delimited IdP groups mapped to the CP_USER role.'
-    ),
-    (
-        'oidc.authz_admin_groups',
-        NULL,
-        '',
-        'csv',
-        'oidc',
-        false,
-        'Comma-delimited IdP groups mapped to the CP_ADMIN role.'
-    ),
-    (
-        'oidc.authz_groups_claim',
-        NULL,
-        'groups',
-        'string',
-        'oidc',
-        false,
-        'JWT claim containing IdP group memberships.'
-    )
+    ('auth.api_key_signature_ttl_seconds',  NULL, '300',                                 'integer', 'auth',    false, 'Maximum accepted age, in seconds, for signed API key requests.'),
+    ('logging.journald_identifier',         NULL, '',                                    'string',  'logging', false, 'Optional journald SYSLOG_IDENTIFIER. When blank, the application default is used.'),
+    ('logging.level',                       NULL, 'INFO',                                'string',  'logging', false, 'Root logging level used by cpkit logging setup.'),
+    ('oidc.cache_ttl_seconds',              NULL, '300',                                 'integer', 'oidc',    false, 'OIDC provider metadata and JWKS cache TTL, in seconds.'),
+    ('oidc.enabled',                        NULL, 'false',                               'boolean', 'oidc',    false, 'Enable browser OIDC authentication.'),
+    ('oidc.issuer_url',                     NULL, '',                                    'string',  'oidc',    false, 'OIDC issuer URL.'),
+    ('oidc.client_id',                      NULL, '',                                    'string',  'oidc',    false, 'OIDC client ID.'),
+    ('oidc.client_secret',                  NULL, '',                                    'string',  'oidc',    true,  'OIDC client secret.'),
+    ('oidc.scopes',                         NULL, 'openid profile email offline_access', 'string',  'oidc',    false, 'Space-delimited OIDC scopes requested during login.'),
+    ('oidc.audience',                       NULL, '',                                    'string',  'oidc',    false, 'Optional expected JWT audience.'),
+    ('oidc.extra_auth_params',              NULL, '{}',                                  'json',    'oidc',    false, 'Additional authorization request parameters as a JSON object.'),
+    ('oidc.redirect_uri',                   NULL, '',                                    'string',  'oidc',    false, 'OIDC redirect URI. Leave blank to derive it from the incoming request.'),
+    ('oidc.login_path',                     NULL, '/api/auth/login',                     'string',  'oidc',    false, 'Login path used when redirecting unauthenticated browser requests.'),
+    ('oidc.session_max_age_seconds',        NULL, '2592000',                             'integer', 'oidc',    false, 'Maximum OIDC session lifetime, in seconds.'),
+    ('oidc.refresh_leeway_seconds',         NULL, '60',                                  'integer', 'oidc',    false, 'Seconds before token expiry when refresh should be attempted.'),
+    ('oidc.cookie_secure',                  NULL, 'false',                               'boolean', 'oidc',    false, 'Whether OIDC cookies require HTTPS.'),
+    ('oidc.cookie_samesite',                NULL, 'lax',                                 'string',  'oidc',    false, 'SameSite value for OIDC cookies: lax, strict, or none.'),
+    ('oidc.cookie_domain',                  NULL, '',                                    'string',  'oidc',    false, 'Optional OIDC cookie domain.'),
+    ('oidc.verify_audience',                NULL, 'false',                               'boolean', 'oidc',    false, 'Whether ID token audience validation is required.'),
+    ('oidc.ui_username_claim',              NULL, 'preferred_username',                  'string',  'oidc',    false, 'JWT claim used as the display/audit username.'),
+    ('oidc.authz_readonly_groups',          NULL, '',                                    'csv',     'oidc',    false, 'Comma-delimited IdP groups mapped to the CP_READONLY role.'),
+    ('oidc.authz_user_groups',              NULL, '',                                    'csv',     'oidc',    false, 'Comma-delimited IdP groups mapped to the CP_USER role.'),
+    ('oidc.authz_admin_groups',             NULL, '',                                    'csv',     'oidc',    false, 'Comma-delimited IdP groups mapped to the CP_ADMIN role.'),
+    ('oidc.authz_groups_claim',             NULL, 'groups',                              'string',  'oidc',    false, 'JWT claim containing IdP group memberships.')
 ON CONFLICT (key) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS cpkit.api_keys (
