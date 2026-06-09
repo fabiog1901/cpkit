@@ -1,5 +1,6 @@
 """Service layer for the cpkit TODO example."""
 
+from cpkit.audit import log_event
 from cpkit.errors import RepositoryError, ServiceNotFoundError, from_repository_error
 from cpkit.jobs.types import JobID
 
@@ -28,11 +29,22 @@ class TodosService:
 
     def create_todo(self, request: TodoCreateRequest, actor: str) -> Todo:
         try:
-            return self.repo.create_todo(
+            todo = self.repo.create_todo(
                 title=request.title.strip(),
                 notes=request.notes,
                 actor=actor,
             )
+            log_event(
+                self.repo,
+                actor,
+                "TODO_CREATED",
+                {
+                    "todo_id": todo.todo_id,
+                    "title": todo.title,
+                    "completed": todo.completed,
+                },
+            )
+            return todo
         except RepositoryError as err:
             raise from_repository_error(
                 err,
@@ -64,9 +76,19 @@ class TodosService:
             ) from err
         if updated is None:
             raise ServiceNotFoundError(f"TODO '{todo_id}' was not found.")
+        log_event(
+            self.repo,
+            actor,
+            "TODO_UPDATED",
+            {
+                "todo_id": updated.todo_id,
+                "title": updated.title,
+                "completed": updated.completed,
+            },
+        )
         return updated
 
-    def delete_todo(self, todo_id: int) -> None:
+    def delete_todo(self, todo_id: int, actor: str) -> None:
         try:
             deleted = self.repo.delete_todo(todo_id)
         except RepositoryError as err:
@@ -77,14 +99,32 @@ class TodosService:
             ) from err
         if not deleted:
             raise ServiceNotFoundError(f"TODO '{todo_id}' was not found.")
+        log_event(
+            self.repo,
+            actor,
+            "TODO_DELETED",
+            {"todo_id": todo_id},
+        )
 
     def enqueue_export(self, request: ExportTodosRequest, actor: str) -> JobID:
         try:
-            return self.repo.enqueue_command(
+            job_id = self.repo.enqueue_command(
                 CommandType.EXPORT_TODOS,
                 request.model_dump(),
                 actor,
             )
+            log_event(
+                self.repo,
+                actor,
+                "TODO_EXPORT_REQUESTED",
+                {
+                    "job_id": job_id.job_id,
+                    "format": request.format,
+                    "include_completed": request.include_completed,
+                    "output_dir": request.output_dir,
+                },
+            )
+            return job_id
         except RepositoryError as err:
             raise from_repository_error(
                 err,

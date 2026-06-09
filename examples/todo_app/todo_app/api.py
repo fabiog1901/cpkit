@@ -59,10 +59,11 @@ async def update_todo(
 async def delete_todo(
     todo_id: int,
     _claims: dict = Security(require_user),
+    actor: str = Depends(get_audit_actor),
     service: TodosService = Depends(get_todos_service),
 ) -> None:
     try:
-        service.delete_todo(todo_id)
+        service.delete_todo(todo_id, actor)
     except ServiceError as err:
         raise_http_from_service_error(err)
 
