@@ -23,6 +23,7 @@ class ApplicationCLI:
         app_schema_checks: Sequence[str] = (),
         db_url_env: str = "DB_URL",
         cpkit_ddl_path: str | Path | None = None,
+        project_root: str | Path | None = None,
     ) -> None:
         self.app_name = app_name
         self.app_import = app_import
@@ -30,6 +31,7 @@ class ApplicationCLI:
         self.app_schema_checks = tuple(app_schema_checks)
         self.db_url_env = db_url_env
         self.cpkit_ddl_path = Path(cpkit_ddl_path) if cpkit_ddl_path else None
+        self.project_root = Path(project_root).resolve() if project_root else None
 
     @classmethod
     def from_project(
@@ -71,6 +73,7 @@ class ApplicationCLI:
             app_ddl_paths=ddl_paths,
             app_schema_checks=schema_checks,
             cpkit_ddl_path=(root / cpkit_ddl) if cpkit_ddl else None,
+            project_root=root,
         )
 
     def main(self, argv: Sequence[str] | None = None) -> int:
@@ -86,7 +89,7 @@ class ApplicationCLI:
             print(f"Applying cpkit migration: {cpkit_ddl}")
             apply_sql_file(db_url, cpkit_ddl)
 
-        for path in self.app_ddl_paths:
+        for path in self._app_ddl_paths():
             print(f"Applying {self.app_name} migration: {path}")
             apply_sql_file(db_url, path)
 
@@ -95,9 +98,7 @@ class ApplicationCLI:
         return 0
 
     def serve(self, args: argparse.Namespace) -> int:
-        """Run preflight checks and serve the FastAPI app."""
-        db_url = self._db_url()
-        self._check_schemas(db_url)
+        """Serve the FastAPI app."""
         serve_uvicorn(
             self.app_import,
             host=args.host,
@@ -148,6 +149,12 @@ class ApplicationCLI:
             return candidate
         return None
 
+    def _app_ddl_paths(self) -> tuple[Path, ...]:
+        if self.app_ddl_paths:
+            return self.app_ddl_paths
+        root = self.project_root or Path(os.getcwd()).resolve()
+        return tuple(path for path in _default_ddl_paths(root) if path.exists())
+
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the current project's cpkit application CLI."""
@@ -167,9 +174,7 @@ def _configured_paths(
     config_value,
 ) -> tuple[Path, ...]:
     values = _configured_values(env_value, config_value)
-    if values:
-        return tuple(root / value for value in values)
-    return tuple(path for path in _default_ddl_paths(root) if path.exists())
+    return tuple(root / value for value in values)
 
 
 def _configured_values(env_value: str | None, config_value) -> tuple[str, ...]:

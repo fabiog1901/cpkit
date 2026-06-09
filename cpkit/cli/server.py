@@ -18,4 +18,5 @@ def serve_uvicorn(
         port=port,
         reload=reload,
         log_level=log_level,
+        log_config=None,
     )
