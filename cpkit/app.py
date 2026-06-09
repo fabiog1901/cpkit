@@ -34,6 +34,7 @@ def create_cpkit_app(
     startup_hooks: Iterable[StartupHook] = (),
     background_tasks: Iterable[BackgroundTaskFactory] = (),
     static_directory: str | Path | None = None,
+    app_static_directory: str | Path | None = None,
     api_prefix: str = "/api",
     default_journald_identifier: str = "cp",
 ) -> FastAPI:
@@ -107,6 +108,13 @@ def create_cpkit_app(
         api.include_router(router)
 
     app.mount(api_prefix, api)
+
+    if app_static_directory is not None:
+        app.mount(
+            "/app",
+            StaticFiles(directory=Path(app_static_directory), html=True),
+            name="app_webapp",
+        )
 
     if static_directory is not None:
         app.mount(

@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 
 class CommandType(StrEnum):
@@ -20,6 +20,10 @@ class Todo(BaseModel):
     created_by: str | None = None
     updated_at: datetime
     updated_by: str | None = None
+
+    @field_serializer("todo_id")
+    def serialize_todo_id(self, todo_id: int) -> str:
+        return str(todo_id)
 
 
 class TodoCreateRequest(BaseModel):

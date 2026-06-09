@@ -1,0 +1,31 @@
+.todo-title-cell {
+  min-width: 260px;
+}
+
+.todo-row-completed .todo-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.todo-notes {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.todo-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.todo-modal-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.todo-textarea {
+  min-height: 96px;
+  resize: vertical;
+}

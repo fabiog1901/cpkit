@@ -17,5 +17,11 @@ app = create_cpkit_app(
     capabilities=(cpkit_capabilities,),
     routers=(my_router,),
     static_directory=template_webapp_directory(),
+    app_static_directory="webapp",
 )
 ```
+
+If `app_static_directory` is set, cpkit mounts it at `/app` and the template
+loads optional `/app/extension.html`, `/app/extension.css`, and
+`/app/extension.js` assets. Applications can use those files to add navigation
+items, views, Alpine state, and methods without copying the cpkit webapp.

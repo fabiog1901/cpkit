@@ -39,7 +39,7 @@ class TodosService:
                 actor,
                 "TODO_CREATED",
                 {
-                    "todo_id": todo.todo_id,
+                    "todo_id": str(todo.todo_id),
                     "title": todo.title,
                     "completed": todo.completed,
                 },
@@ -81,7 +81,7 @@ class TodosService:
             actor,
             "TODO_UPDATED",
             {
-                "todo_id": updated.todo_id,
+                "todo_id": str(updated.todo_id),
                 "title": updated.title,
                 "completed": updated.completed,
             },
@@ -103,7 +103,7 @@ class TodosService:
             self.repo,
             actor,
             "TODO_DELETED",
-            {"todo_id": todo_id},
+            {"todo_id": str(todo_id)},
         )
 
     def enqueue_export(self, request: ExportTodosRequest, actor: str) -> JobID:

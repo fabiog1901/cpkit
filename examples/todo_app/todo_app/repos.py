@@ -205,7 +205,7 @@ class Repo(CPKitRepo):
 
 def todo_to_export_row(todo: Todo) -> dict[str, Any]:
     return {
-        "todo_id": todo.todo_id,
+        "todo_id": str(todo.todo_id),
         "title": todo.title,
         "notes": todo.notes,
         "completed": todo.completed,

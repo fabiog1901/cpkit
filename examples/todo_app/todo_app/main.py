@@ -1,6 +1,7 @@
 """cpkit TODO example application."""
 
 import os
+from pathlib import Path
 
 from cpkit import create_cpkit_app, create_cpkit_bundle, template_webapp_directory
 
@@ -10,6 +11,7 @@ from .repos import Repo
 from .workers import COMMAND_HANDLERS
 
 CPKIT_DB_URL = os.getenv("CPKIT_DB_URL")
+WEBAPP_DIR = Path(__file__).resolve().parents[1] / "webapp"
 
 cpkit_capabilities = create_cpkit_bundle(
     command_models=COMMAND_MODELS,
@@ -24,5 +26,6 @@ app = create_cpkit_app(
     capabilities=(cpkit_capabilities,),
     routers=(todos_router,),
     static_directory=template_webapp_directory(),
+    app_static_directory=WEBAPP_DIR,
     default_journald_identifier="todo-app",
 )

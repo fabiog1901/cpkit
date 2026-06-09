@@ -1,0 +1,124 @@
+<main class="layout" x-show="view === 'todos'">
+  <aside class="sidebar">
+    <section>
+      <h2>Todos</h2>
+      <div class="metric button-stack">
+        <button class="btn primary" @click="openTodoModal()">Create Task</button>
+        <button class="btn" @click="exportTodos()" :disabled="todosLoading.export">
+          <span x-show="!todosLoading.export">Export Tasks</span>
+          <span x-show="todosLoading.export">Exporting...</span>
+        </button>
+        <button class="btn" @click="refreshTodos()" :disabled="todosLoading.list">Refresh</button>
+      </div>
+    </section>
+    <section>
+      <h2>Filter</h2>
+      <input
+        class="input"
+        type="search"
+        x-model="todosFilterQuery"
+        @input="applyTodosFilterSort()"
+        placeholder="Search tasks"
+      />
+    </section>
+    <section>
+      <h2>Options</h2>
+      <label class="check-row">
+        <input type="checkbox" x-model="todosIncludeCompleted" @change="refreshTodos()" />
+        Include completed
+      </label>
+    </section>
+  </aside>
+
+  <section class="main">
+    <div class="section-head">
+      <div>
+        <h2>Todos</h2>
+        <p>Tasks managed by the example app API.</p>
+      </div>
+      <div class="timestamp" x-text="todosLastUpdatedUtc || '-'"></div>
+    </div>
+    <div
+      class="notice"
+      :class="{ danger: !todosToast.ok, success: todosToast.ok }"
+      x-show="todosToast.message"
+      x-text="todosToast.message"
+    ></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th @click="sortTodos(0)" :class="todosSortClass(0)">ID</th>
+            <th @click="sortTodos(1)" :class="todosSortClass(1)">Task</th>
+            <th @click="sortTodos(2)" :class="todosSortClass(2)">Status</th>
+            <th @click="sortTodos(3)" :class="todosSortClass(3)">Updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="todo in todosVisibleRows" :key="todo.todo_id">
+            <tr :class="{ 'todo-row-completed': todo.completed }">
+              <td x-text="todo.todo_id"></td>
+              <td class="todo-title-cell">
+                <div class="todo-title strong" x-text="todo.title"></div>
+                <div class="todo-notes" x-show="todo.notes" x-text="todo.notes"></div>
+              </td>
+              <td>
+                <span
+                  class="status-pill"
+                  :class="todo.completed ? 'success' : 'pending'"
+                  x-text="todo.completed ? 'completed' : 'open'"
+                ></span>
+              </td>
+              <td x-text="toUtcStringMaybe(todo.updated_at)"></td>
+              <td>
+                <div class="todo-actions">
+                  <button class="btn" @click="openTodoModal(todo)">Update</button>
+                  <button class="btn danger" @click="deleteTodo(todo)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <tr x-show="todosVisibleRows.length === 0">
+            <td colspan="5" class="empty-cell">No tasks found.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<div class="modal-backdrop" x-show="modal.todoEditor.open" @click.self="closeTodoModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 x-text="modal.todoEditor.todo_id ? 'Update Task' : 'Create Task'"></h2>
+      <button class="icon-btn" @click="closeTodoModal()">x</button>
+    </div>
+    <div class="todo-modal-grid">
+      <div>
+        <label class="field-label">Title</label>
+        <input class="input" x-model="modal.todoEditor.title" placeholder="Task title" />
+      </div>
+      <div>
+        <label class="field-label">Notes</label>
+        <textarea
+          class="input todo-textarea"
+          x-model="modal.todoEditor.notes"
+          placeholder="Optional notes"
+        ></textarea>
+      </div>
+      <label class="check-row" x-show="modal.todoEditor.todo_id">
+        <input type="checkbox" x-model="modal.todoEditor.completed" />
+        Completed
+      </label>
+    </div>
+    <div class="notice danger" x-show="modalError.todoEditor" x-text="modalError.todoEditor"></div>
+    <div class="modal-actions">
+      <button class="btn" @click="closeTodoModal()">Cancel</button>
+      <button class="btn primary" @click="saveTodo()" :disabled="todosLoading.save">
+        <span x-show="!todosLoading.save">Save</span>
+        <span x-show="todosLoading.save">Saving...</span>
+      </button>
+    </div>
+  </div>
+</div>

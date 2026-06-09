@@ -18,6 +18,8 @@ poetry run todo serve --reload
 ```
 
 The app mounts cpkit's template webapp at `/` and the API at `/api`.
+It also contributes a small webapp extension at `/app` that adds a Todos page
+to the cpkit shell with separate HTML, CSS, and JavaScript files.
 
 ## API
 

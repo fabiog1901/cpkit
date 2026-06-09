@@ -6,6 +6,8 @@
   <title>cpkit</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/app/extension.css" />
+  <script defer src="/app/extension.js"></script>
   <script defer src="/script.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/mode-yaml.js"></script>
@@ -49,6 +51,10 @@
               @click.prevent="setView('events')">Events</a>
             <a href="#" class="pill" :class="{ 'pill-accent': isAdminSectionView() }" x-show="canViewAdmin()"
               @click.prevent="setView('admin')">Admin</a>
+            <template x-for="item in extensionNavItems" :key="item.view">
+              <a href="#" class="pill" :class="{ 'pill-accent': view === item.view }"
+                @click.prevent="setView(item.view)" x-text="item.label"></a>
+            </template>
           </nav>
 
           <button type="button" class="user-chip" @click="openUserInfoModal()" :title="userIconTitle()">
@@ -510,6 +516,8 @@
           <div class="editor" x-ref="aceContainer"></div>
         </section>
       </main>
+
+      <div id="cpkit-extension-root"></div>
 
       <div class="modal-backdrop" x-show="modal.userInfo.open" @click.self="closeUserInfoModal()">
         <div class="modal">

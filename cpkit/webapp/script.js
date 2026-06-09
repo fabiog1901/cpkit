@@ -1,7 +1,9 @@
 window.app = function () {
+  const extension = window.cpkitWebappExtension || {};
   return {
     view: "dashboard",
     apiBase: "/api",
+    extensionNavItems: Array.isArray(extension.navItems) ? extension.navItems : [],
     authChecked: false,
     isAuthenticated: false,
     authClaims: null,
@@ -76,6 +78,8 @@ window.app = function () {
     modalError: {},
 
     async init() {
+      await this.loadExtensionHtml();
+      this.applyExtensionHooks();
       this.restoreLocalState();
       await this.checkAuth();
       if (!this.isAuthenticated) return;
@@ -92,6 +96,51 @@ window.app = function () {
         if (this.settingsAutoRefreshEnabled && this.view === "settings") this.refreshSettings();
       });
       this.refreshDashboardOverview({ onlyIfEmpty: true });
+      if (typeof extension.init === "function") {
+        await extension.init.call(this);
+      }
+    },
+
+    async loadExtensionHtml() {
+      const target = document.getElementById("cpkit-extension-root");
+      if (!target || target.dataset.extensionLoaded) return;
+
+      const htmlPath = extension.htmlPath || "/app/extension.html";
+      try {
+        target.dataset.extensionLoaded = "loading";
+        const res = await fetch(htmlPath, { method: "GET" });
+        if (!res.ok) {
+          delete target.dataset.extensionLoaded;
+          return;
+        }
+        const html = await res.text();
+        if (!html.trim()) {
+          delete target.dataset.extensionLoaded;
+          return;
+        }
+        target.innerHTML = html;
+        target.dataset.extensionLoaded = "true";
+      } catch {
+        delete target.dataset.extensionLoaded;
+        return;
+      }
+    },
+
+    applyExtensionHooks() {
+      for (const [key, value] of Object.entries(extension.state || {})) {
+        if (this.isPlainObject(this[key]) && this.isPlainObject(value)) {
+          this[key] = { ...this[key], ...value };
+        } else {
+          this[key] = value;
+        }
+      }
+      for (const [name, method] of Object.entries(extension.methods || {})) {
+        if (typeof method === "function") this[name] = method;
+      }
+    },
+
+    isPlainObject(value) {
+      return Boolean(value && typeof value === "object" && !Array.isArray(value));
     },
 
     restoreLocalState() {
@@ -179,6 +228,13 @@ window.app = function () {
       else if (parts[0] === "admin" && parts[1] === "settings") next = "settings";
       else if (parts[0] === "admin" && parts[1] === "playbooks") next = "playbooks";
       else if (parts[0] === "admin") next = "admin";
+      else {
+        const hashPath = `/${parts.join("/")}`;
+        const matched = Object.entries(extension.routes || {}).find(
+          ([, route]) => route.path === hashPath,
+        );
+        if (matched) next = matched[0];
+      }
       this.view = next;
       this.ensureViewData();
     },
@@ -194,6 +250,7 @@ window.app = function () {
         settings: "/admin/settings",
         playbooks: "/admin/playbooks",
       };
+      if (extension.routes?.[view]?.path) return extension.routes[view].path;
       return routes[view] || "/";
     },
 
@@ -208,6 +265,7 @@ window.app = function () {
     },
 
     canAccessView(viewName) {
+      if (extension.routes?.[viewName]?.adminOnly) return this.canViewAdmin();
       if (!["admin", "api_keys", "settings", "playbooks"].includes(viewName)) return true;
       return this.canViewAdmin();
     },
@@ -224,11 +282,16 @@ window.app = function () {
         settings: "Settings",
         playbooks: "Playbooks",
         admin: "Admin",
-      }[viewName] || viewName;
+      }[viewName] || extension.routes?.[viewName]?.label || viewName;
     },
 
     async ensureViewData() {
       if (!this.isAuthenticated) return;
+      const extensionEnsure = extension.routes?.[this.view]?.ensure;
+      if (extensionEnsure && typeof this[extensionEnsure] === "function") {
+        await this[extensionEnsure]();
+        return;
+      }
       if (this.view === "jobs") await this.refreshJobs();
       else if (this.view === "job") await this.refreshSelectedJobDetails();
       else if (this.view === "events") await this.refreshEvents();
@@ -248,7 +311,7 @@ window.app = function () {
         api_keys: "Programmatic access credentials",
         settings: "Dynamic configuration",
         playbooks: "Versioned automation content",
-      }[this.view] || "";
+      }[this.view] || extension.routes?.[this.view]?.subtitle || "";
     },
 
     isAdminSectionView() {
