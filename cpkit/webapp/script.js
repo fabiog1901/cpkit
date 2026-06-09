@@ -4,6 +4,11 @@ window.app = function () {
     view: "dashboard",
     apiBase: "/api",
     extensionNavItems: Array.isArray(extension.navItems) ? extension.navItems : [],
+    brand: {
+      logoText: "ck",
+      appName: "cpkit",
+      loginSubtitle: "Authenticate to access the dashboard",
+    },
     authChecked: false,
     isAuthenticated: false,
     authClaims: null,
@@ -80,6 +85,7 @@ window.app = function () {
     async init() {
       await this.loadExtensionHtml();
       this.applyExtensionHooks();
+      this.applyExtensionBrand();
       this.restoreLocalState();
       await this.checkAuth();
       if (!this.isAuthenticated) return;
@@ -137,6 +143,23 @@ window.app = function () {
       for (const [name, method] of Object.entries(extension.methods || {})) {
         if (typeof method === "function") this[name] = method;
       }
+    },
+
+    applyExtensionBrand() {
+      const brandMarker = document.getElementById("cpkit-extension-brand");
+      const htmlBrand = brandMarker
+        ? {
+            logoText: brandMarker.dataset.logoText,
+            appName: brandMarker.dataset.appName,
+            loginSubtitle: brandMarker.dataset.loginSubtitle,
+          }
+        : {};
+      this.brand = {
+        ...this.brand,
+        ...(extension.brand || {}),
+        ...Object.fromEntries(Object.entries(htmlBrand).filter(([, value]) => value)),
+      };
+      document.title = this.brand.appName || "cpkit";
     },
 
     isPlainObject(value) {

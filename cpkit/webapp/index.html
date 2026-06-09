@@ -21,10 +21,10 @@
 
     <div class="login-panel" x-show="authChecked && !isAuthenticated">
       <div class="brand-row">
-        <div class="logo-pill">ck</div>
+        <div class="logo-pill" x-text="brand.logoText"></div>
         <div>
-          <h1>cpkit</h1>
-          <p>Authenticate to access the dashboard</p>
+          <h1 x-text="brand.appName"></h1>
+          <p x-text="brand.loginSubtitle"></p>
         </div>
       </div>
       <div class="notice danger" x-show="authError" x-text="authError"></div>
@@ -34,9 +34,9 @@
     <div class="app-shell" x-show="authChecked && isAuthenticated">
       <header class="topbar">
         <div class="topbar-title">
-          <div class="logo-pill">ck</div>
+          <div class="logo-pill" x-text="brand.logoText"></div>
           <div>
-            <h1>cpkit</h1>
+            <h1 x-text="brand.appName"></h1>
             <div class="topbar-sub" x-text="viewSubtitle()"></div>
           </div>
         </div>
@@ -45,25 +45,25 @@
           <nav class="topbar-nav" aria-label="Primary">
             <a href="#" class="pill" :class="{ 'pill-accent': view === 'dashboard' }"
               @click.prevent="setView('dashboard')">Dashboard</a>
+            <template x-for="item in extensionNavItems" :key="item.view">
+              <a href="#" class="pill" :class="{ 'pill-accent': view === item.view }"
+                @click.prevent="setView(item.view)" x-text="item.label"></a>
+            </template>
             <a href="#" class="pill" :class="{ 'pill-accent': view === 'jobs' || view === 'job' }"
               @click.prevent="setView('jobs')">Jobs</a>
             <a href="#" class="pill" :class="{ 'pill-accent': view === 'events' }"
               @click.prevent="setView('events')">Events</a>
             <a href="#" class="pill" :class="{ 'pill-accent': isAdminSectionView() }" x-show="canViewAdmin()"
               @click.prevent="setView('admin')">Admin</a>
-            <template x-for="item in extensionNavItems" :key="item.view">
-              <a href="#" class="pill" :class="{ 'pill-accent': view === item.view }"
-                @click.prevent="setView(item.view)" x-text="item.label"></a>
-            </template>
+
           </nav>
 
           <button type="button" class="user-chip" @click="openUserInfoModal()" :title="userIconTitle()">
             <span class="user-chip-icon" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5Z"
-                  stroke="currentColor" stroke-width="1.8" />
-                <path d="M3 21c0-4.42 3.58-8 8-8h2c4.42 0 8 3.58 8 8" stroke="currentColor"
+                <path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5Z" stroke="currentColor"
                   stroke-width="1.8" />
+                <path d="M3 21c0-4.42 3.58-8 8-8h2c4.42 0 8 3.58 8 8" stroke="currentColor" stroke-width="1.8" />
               </svg>
             </span>
             <span class="user-chip-name" x-text="userDisplayName()"></span>
@@ -214,7 +214,8 @@
                   <tr @click="openJob(job.job_id)" class="clickable-row">
                     <td x-text="job.job_id"></td>
                     <td x-text="job.job_type || '-'"></td>
-                    <td><span class="status-pill" :class="statusClass(job.status)" x-text="job.status || '-'"></span></td>
+                    <td><span class="status-pill" :class="statusClass(job.status)" x-text="job.status || '-'"></span>
+                    </td>
                     <td x-text="job.created_by || '-'"></td>
                     <td x-text="toUtcStringMaybe(job.created_at)"></td>
                     <td x-text="toUtcStringMaybe(job.updated_at)"></td>
