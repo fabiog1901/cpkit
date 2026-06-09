@@ -3,6 +3,7 @@
 from .admin import create_cpkit_admin_router
 from .app import create_cpkit_app
 from .bundle import CpkitBundle, create_cpkit_bundle
+from .cli import ApplicationCLI
 from .dependencies import (
     configure_cpkit_dependencies,
     get_access_scope,
@@ -17,6 +18,7 @@ from .time import STRFTIME, TS_FORMAT
 
 __all__ = [
     "CPKitRepo",
+    "ApplicationCLI",
     "CpkitBundle",
     "STRFTIME",
     "TS_FORMAT",

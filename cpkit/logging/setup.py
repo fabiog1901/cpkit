@@ -76,4 +76,6 @@ def _setting_value(settings_provider, key: Any, default: str) -> str:
 
     setting = settings_provider.get_setting(key)
     value = getattr(setting, "value", setting)
+    if value in (None, ""):
+        return default
     return str(value)

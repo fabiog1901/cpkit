@@ -1,8 +1,7 @@
-CREATE SCHEMA cpkit;
-GRANT USAGE ON SCHEMA cpkit TO cp;
+CREATE SCHEMA IF NOT EXISTS cpkit;
 
-CREATE SEQUENCE cpkit.mq_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1 PER NODE CACHE 100;
-CREATE TABLE cpkit.mq (
+CREATE SEQUENCE IF NOT EXISTS cpkit.mq_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1 PER NODE CACHE 100;
+CREATE TABLE IF NOT EXISTS cpkit.mq (
     msg_id INT8 NOT NULL DEFAULT nextval('cpkit.mq_seq'::REGCLASS),
     start_after TIMESTAMPTZ NOT NULL DEFAULT now():::TIMESTAMPTZ,
     msg_type STRING NOT NULL,
@@ -13,9 +12,14 @@ CREATE TABLE cpkit.mq (
 );
 
 INSERT INTO cpkit.mq (msg_type, start_after)
-VALUES ('FAIL_ZOMBIE_JOBS', now() + INTERVAL '300s' + (random()*10)::INTERVAL);
+SELECT 'FAIL_ZOMBIE_JOBS', now() + INTERVAL '300s' + (random()*10)::INTERVAL
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM cpkit.mq
+    WHERE msg_type = 'FAIL_ZOMBIE_JOBS'
+);
 
-CREATE TABLE cpkit.jobs (
+CREATE TABLE IF NOT EXISTS cpkit.jobs (
     job_id INT8 NOT NULL,
     job_type STRING NULL,
     status STRING NULL,
@@ -30,7 +34,7 @@ CREATE TABLE cpkit.jobs (
     ttl_job_cron = '@daily'
 );
 
-CREATE TABLE cpkit.tasks (
+CREATE TABLE IF NOT EXISTS cpkit.tasks (
     job_id INT8 NOT NULL,
     task_id INT2 NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
@@ -40,7 +44,7 @@ CREATE TABLE cpkit.tasks (
     CONSTRAINT job_id_in_jobs FOREIGN KEY (job_id) REFERENCES cpkit.jobs(job_id) ON DELETE CASCADE
 );
 
-CREATE TABLE cpkit.event_log (
+CREATE TABLE IF NOT EXISTS cpkit.event_log (
     ts TIMESTAMPTZ NOT NULL DEFAULT now():::TIMESTAMPTZ,
     user_id STRING NOT NULL,
     action STRING NOT NULL,
@@ -53,7 +57,7 @@ CREATE TABLE cpkit.event_log (
     ttl_job_cron = '@daily'
 );
 
-CREATE TABLE cpkit.settings (
+CREATE TABLE IF NOT EXISTS cpkit.settings (
     key STRING NOT NULL,
     value STRING NULL,
     default_value STRING NULL,
@@ -66,7 +70,235 @@ CREATE TABLE cpkit.settings (
     CONSTRAINT pk_settings PRIMARY KEY (key ASC)
 );
 
-CREATE TABLE cpkit.api_keys (
+INSERT INTO cpkit.settings (
+    key,
+    value,
+    default_value,
+    value_type,
+    category,
+    is_secret,
+    description
+)
+VALUES
+    (
+        'auth.api_key_signature_ttl_seconds',
+        NULL,
+        '300',
+        'integer',
+        'auth',
+        false,
+        'Maximum accepted age, in seconds, for signed API key requests.'
+    ),
+    (
+        'logging.journald_identifier',
+        NULL,
+        '',
+        'string',
+        'logging',
+        false,
+        'Optional journald SYSLOG_IDENTIFIER. When blank, the application default is used.'
+    ),
+    (
+        'logging.level',
+        NULL,
+        'INFO',
+        'string',
+        'logging',
+        false,
+        'Root logging level used by cpkit logging setup.'
+    ),
+    (
+        'oidc.cache_ttl_seconds',
+        NULL,
+        '300',
+        'integer',
+        'oidc',
+        false,
+        'OIDC provider metadata and JWKS cache TTL, in seconds.'
+    ),
+    (
+        'oidc.enabled',
+        NULL,
+        'false',
+        'boolean',
+        'oidc',
+        false,
+        'Enable browser OIDC authentication.'
+    ),
+    (
+        'oidc.issuer_url',
+        NULL,
+        '',
+        'string',
+        'oidc',
+        false,
+        'OIDC issuer URL.'
+    ),
+    (
+        'oidc.client_id',
+        NULL,
+        '',
+        'string',
+        'oidc',
+        false,
+        'OIDC client ID.'
+    ),
+    (
+        'oidc.client_secret',
+        NULL,
+        '',
+        'string',
+        'oidc',
+        true,
+        'OIDC client secret.'
+    ),
+    (
+        'oidc.scopes',
+        NULL,
+        'openid profile email offline_access',
+        'string',
+        'oidc',
+        false,
+        'Space-delimited OIDC scopes requested during login.'
+    ),
+    (
+        'oidc.audience',
+        NULL,
+        '',
+        'string',
+        'oidc',
+        false,
+        'Optional expected JWT audience.'
+    ),
+    (
+        'oidc.extra_auth_params',
+        NULL,
+        '{}',
+        'json',
+        'oidc',
+        false,
+        'Additional authorization request parameters as a JSON object.'
+    ),
+    (
+        'oidc.redirect_uri',
+        NULL,
+        '',
+        'string',
+        'oidc',
+        false,
+        'OIDC redirect URI. Leave blank to derive it from the incoming request.'
+    ),
+    (
+        'oidc.login_path',
+        NULL,
+        '/api/auth/login',
+        'string',
+        'oidc',
+        false,
+        'Login path used when redirecting unauthenticated browser requests.'
+    ),
+    (
+        'oidc.session_max_age_seconds',
+        NULL,
+        '2592000',
+        'integer',
+        'oidc',
+        false,
+        'Maximum OIDC session lifetime, in seconds.'
+    ),
+    (
+        'oidc.refresh_leeway_seconds',
+        NULL,
+        '60',
+        'integer',
+        'oidc',
+        false,
+        'Seconds before token expiry when refresh should be attempted.'
+    ),
+    (
+        'oidc.cookie_secure',
+        NULL,
+        'false',
+        'boolean',
+        'oidc',
+        false,
+        'Whether OIDC cookies require HTTPS.'
+    ),
+    (
+        'oidc.cookie_samesite',
+        NULL,
+        'lax',
+        'string',
+        'oidc',
+        false,
+        'SameSite value for OIDC cookies: lax, strict, or none.'
+    ),
+    (
+        'oidc.cookie_domain',
+        NULL,
+        '',
+        'string',
+        'oidc',
+        false,
+        'Optional OIDC cookie domain.'
+    ),
+    (
+        'oidc.verify_audience',
+        NULL,
+        'false',
+        'boolean',
+        'oidc',
+        false,
+        'Whether ID token audience validation is required.'
+    ),
+    (
+        'oidc.ui_username_claim',
+        NULL,
+        'preferred_username',
+        'string',
+        'oidc',
+        false,
+        'JWT claim used as the display/audit username.'
+    ),
+    (
+        'oidc.authz_readonly_groups',
+        NULL,
+        '',
+        'csv',
+        'oidc',
+        false,
+        'Comma-delimited IdP groups mapped to the CP_READONLY role.'
+    ),
+    (
+        'oidc.authz_user_groups',
+        NULL,
+        '',
+        'csv',
+        'oidc',
+        false,
+        'Comma-delimited IdP groups mapped to the CP_USER role.'
+    ),
+    (
+        'oidc.authz_admin_groups',
+        NULL,
+        '',
+        'csv',
+        'oidc',
+        false,
+        'Comma-delimited IdP groups mapped to the CP_ADMIN role.'
+    ),
+    (
+        'oidc.authz_groups_claim',
+        NULL,
+        'groups',
+        'string',
+        'oidc',
+        false,
+        'JWT claim containing IdP group memberships.'
+    )
+ON CONFLICT (key) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS cpkit.api_keys (
     access_key STRING NOT NULL,
     encrypted_secret_access_key BYTES NOT NULL,
     owner STRING NOT NULL,
@@ -75,7 +307,7 @@ CREATE TABLE cpkit.api_keys (
     CONSTRAINT pk_api_keys PRIMARY KEY (access_key ASC)
 );
 
-CREATE TABLE cpkit.oidc_sessions (
+CREATE TABLE IF NOT EXISTS cpkit.oidc_sessions (
     session_id STRING NOT NULL,
     encrypted_id_token BYTES NOT NULL,
     encrypted_refresh_token BYTES NULL,
@@ -86,13 +318,13 @@ CREATE TABLE cpkit.oidc_sessions (
     CONSTRAINT pk_oidc_sessions PRIMARY KEY (session_id ASC)
 ) WITH (ttl = 'on', ttl_expiration_expression = e'(session_expires_at)', ttl_job_cron = '@hourly');
 
-CREATE TABLE cpkit.role_to_groups_mappings (
+CREATE TABLE IF NOT EXISTS cpkit.role_to_groups_mappings (
     "role" STRING NOT NULL,
     groups STRING[] NULL,
     CONSTRAINT pk_role_to_groups_mappings PRIMARY KEY ("role" ASC)
 );
 
-CREATE TABLE cpkit.playbooks (
+CREATE TABLE IF NOT EXISTS cpkit.playbooks (
     name STRING NOT NULL,
     version TIMESTAMPTZ(0) NOT NULL DEFAULT now():::TIMESTAMPTZ,
     content BYTES NULL,
