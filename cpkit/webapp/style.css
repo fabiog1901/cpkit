@@ -69,6 +69,36 @@ select {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
 }
 
+.login-logo-pill {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(251, 146, 60, 0.96), rgba(245, 158, 11, 0.86) 58%, rgba(120, 53, 15, 0.92) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.24), 0 18px 35px rgba(0, 0, 0, 0.4);
+  color: #21160a;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.login-panel h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.login-subtitle {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.login-error {
+  margin: 10px 0 14px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
 .brand-row,
 .topbar-title,
 .topbar-right,

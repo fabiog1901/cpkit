@@ -21,14 +21,14 @@
 
     <div class="login-panel" x-show="authChecked && !isAuthenticated">
       <div class="brand-row">
-        <div class="logo-pill" x-text="brand.logoText"></div>
+        <div class="login-logo-pill" x-text="brand.logoText"></div>
         <div>
-          <h1 x-text="brand.appName"></h1>
-          <p x-text="brand.loginSubtitle"></p>
+          <h2 x-text="brand.appName"></h2>
+          <div class="login-subtitle" x-text="brand.loginSubtitle"></div>
         </div>
       </div>
-      <div class="notice danger" x-show="authError" x-text="authError"></div>
-      <button type="button" class="btn primary" @click="loginWithSSO()">Login with SSO</button>
+      <div class="login-error" x-show="authError" x-text="authError"></div>
+      <button type="button" class="btn" @click="loginWithSSO()">Login with SSO</button>
     </div>
 
     <div class="app-shell" x-show="authChecked && isAuthenticated">
