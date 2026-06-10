@@ -554,11 +554,11 @@ window.app = function () {
 
     eventsCellText(event, index) {
       return [
-        event.ts,
-        event.user_id,
-        event.action,
-        this.detailsText(event.details),
-        event.request_id,
+        event?.ts,
+        event?.user_id,
+        event?.action,
+        this.eventsDetailsText(event),
+        event?.request_id,
       ][index] ?? "";
     },
 
@@ -588,6 +588,14 @@ window.app = function () {
       rows.sort((a, b) => this.compareValues(this.eventsCellText(a, this.eventsSortIndex), this.eventsCellText(b, this.eventsSortIndex)));
       if (this.eventsSortDir === "desc") rows.reverse();
       this.eventsVisibleRows = rows;
+    },
+
+    eventsDetailsText(event) {
+      return this.toYaml(event?.details ?? null);
+    },
+
+    onEventsFilterInput() {
+      this.applyEventsFilterSort();
     },
 
     recentEvents(limit) {

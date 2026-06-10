@@ -372,58 +372,77 @@
         </section>
       </main>
 
-      <main class="layout" x-show="view === 'events'">
-        <aside class="sidebar">
+      <main class="layout events-layout" x-show="view === 'events'">
+        <aside class="sidebar events-sidebar">
           <section>
-            <h2>Events</h2>
+            <h2>Summary</h2>
+            <div class="metric">
+              <div class="metric-label">Total Events</div>
+              <div class="metric-value" x-text="events.length"></div>
+            </div>
+          </section>
+          <section>
+            <h2>Actions</h2>
             <div class="metric button-stack">
-              <button class="btn" @click="refreshEvents()">Refresh</button>
+              <button class="btn" @click="refreshEvents()" :disabled="eventsLoading.list">
+                <span x-show="!eventsLoading.list">Refresh</span>
+                <span x-show="eventsLoading.list">Loading...</span>
+              </button>
               <label class="check-row">
                 <input type="checkbox" x-model="eventsAutoRefreshEnabled" />
-                Auto-refresh
+                Auto-refresh (15s)
               </label>
             </div>
           </section>
-          <section>
-            <h2>Filter</h2>
-            <input class="input" type="search" x-model="eventsFilterQuery" @input="applyEventsFilterSort()"
-              placeholder="Search events" />
-          </section>
         </aside>
-        <section class="main">
-          <div class="section-head">
-            <div>
-              <h2>Events</h2>
-              <p>Framework audit log.</p>
+
+        <section class="main events-main">
+          <div class="main-header">
+            <div class="main-header-left">
+              <div class="main-title">Events</div>
+              <div class="main-subtitle">Visible platform events from the events API.</div>
             </div>
-            <div class="timestamp" x-text="eventsLastUpdatedUtc || '-'"></div>
+
+            <div class="main-actions">
+              <input type="search" class="search-input" placeholder="Filter by user, action, or details..."
+                x-model="eventsFilterQuery" @input="onEventsFilterInput()" />
+              <div class="pill">Updated (UTC): <span x-text="eventsLastUpdatedUtc || '-'"></span></div>
+            </div>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th @click="sortEvents(0)" :class="eventsSortClass(0)">Time</th>
-                  <th @click="sortEvents(1)" :class="eventsSortClass(1)">User</th>
-                  <th @click="sortEvents(2)" :class="eventsSortClass(2)">Action</th>
-                  <th>Details</th>
-                  <th>Request</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="event in eventsVisibleRows" :key="`${event.ts}-${event.user_id}-${event.action}`">
+
+          <div class="table-container events-table-container">
+            <div class="table-scroll events-table-scroll">
+              <table class="events-table">
+                <thead>
                   <tr>
-                    <td x-text="toUtcStringMaybe(event.ts)"></td>
-                    <td x-text="event.user_id || '-'"></td>
-                    <td><span class="status-pill neutral" x-text="event.action || '-'"></span></td>
-                    <td x-text="detailsText(event.details)"></td>
-                    <td x-text="event.request_id || '-'"></td>
+                    <th data-sort="date" :class="eventsSortClass(0)" @click="sortEvents(0)">Timestamp</th>
+                    <th data-sort="string" :class="eventsSortClass(1)" @click="sortEvents(1)">User ID</th>
+                    <th data-sort="string" :class="eventsSortClass(2)" @click="sortEvents(2)">Action</th>
+                    <th data-sort="string" :class="eventsSortClass(3)" @click="sortEvents(3)">Details</th>
+                    <th data-sort="string" :class="eventsSortClass(4)" @click="sortEvents(4)">Context</th>
                   </tr>
-                </template>
-                <tr x-show="eventsVisibleRows.length === 0">
-                  <td colspan="5" class="empty-cell">No events found.</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <template x-for="event in eventsVisibleRows"
+                    :key="`${event.ts}-${event.user_id}-${event.action}-${event.request_id || ''}`">
+                    <tr>
+                      <td><span x-text="toUtcStringMaybe(event.ts)"></span></td>
+                      <td><span x-text="event.user_id || '-'"></span></td>
+                      <td>
+                        <span class="service-pill event-action-pill" x-text="event.action || '-'"></span>
+                      </td>
+                      <td class="events-details-cell">
+                        <pre class="events-yaml" x-text="eventsDetailsText(event)"></pre>
+                      </td>
+                      <td><span x-text="event.request_id || '-'"></span></td>
+                    </tr>
+                  </template>
+                  <tr x-show="!eventsLoading.list && eventsVisibleRows.length === 0">
+                    <td colspan="5" class="empty-cell">No results.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </main>
