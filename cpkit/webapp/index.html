@@ -152,21 +152,13 @@
           </div>
 
           <div class="dashboard-grid dashboard-admin-grid" x-show="canViewAdmin()">
-            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('api_keys')">
-              <div class="dashboard-card-kicker">Security</div>
-              <h3>API Keys</h3>
-              <p>Issue and revoke HMAC API credentials.</p>
-            </button>
-            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('settings')">
-              <div class="dashboard-card-kicker">Configuration</div>
-              <h3>Settings</h3>
-              <p>Manage framework settings stored in the repository.</p>
-            </button>
-            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('playbooks')">
-              <div class="dashboard-card-kicker">Automation</div>
-              <h3>Playbooks</h3>
-              <p>Edit playbook versions used by cpkit jobs.</p>
-            </button>
+            <template x-for="item in adminItems()" :key="item.view">
+              <button type="button" class="dashboard-card dashboard-card-button" @click="setView(item.view)">
+                <div class="dashboard-card-kicker" x-text="item.kicker"></div>
+                <h3 x-text="item.label"></h3>
+                <p x-text="item.description"></p>
+              </button>
+            </template>
           </div>
         </section>
       </main>
@@ -316,9 +308,9 @@
           <section>
             <h2>Admin</h2>
             <div class="metric button-stack">
-              <button class="btn" @click="setView('api_keys')">API Keys</button>
-              <button class="btn" @click="setView('settings')">Settings</button>
-              <button class="btn" @click="setView('playbooks')">Playbooks</button>
+              <template x-for="item in adminItems()" :key="item.view">
+                <button class="btn" @click="setView(item.view)" x-text="item.label"></button>
+              </template>
             </div>
           </section>
         </aside>
@@ -330,21 +322,13 @@
             </div>
           </div>
           <div class="dashboard-grid dashboard-admin-grid">
-            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('api_keys')">
-              <div class="dashboard-card-kicker">Security</div>
-              <h3>API Keys</h3>
-              <p>Manage API credentials.</p>
-            </button>
-            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('settings')">
-              <div class="dashboard-card-kicker">Configuration</div>
-              <h3>Settings</h3>
-              <p>Update settings and reset defaults.</p>
-            </button>
-            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('playbooks')">
-              <div class="dashboard-card-kicker">Automation</div>
-              <h3>Playbooks</h3>
-              <p>Edit versioned playbook content.</p>
-            </button>
+            <template x-for="item in adminItems()" :key="item.view">
+              <button type="button" class="dashboard-card dashboard-card-button" @click="setView(item.view)">
+                <div class="dashboard-card-kicker" x-text="item.kicker"></div>
+                <h3 x-text="item.label"></h3>
+                <p x-text="item.description"></p>
+              </button>
+            </template>
           </div>
         </section>
       </main>

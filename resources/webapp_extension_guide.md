@@ -19,8 +19,8 @@ pages and browser plumbing for:
 - API keys
 - Playbooks
 
-The application contributes only business-specific views, styles, and browser
-logic through extension assets.
+The application contributes only business-specific views, admin views, styles,
+and browser logic through extension assets.
 
 ## Expected App Structure
 
@@ -60,6 +60,14 @@ cpkit mounts the app webapp directory at `/app`.
 window.cpkitWebappExtension = {
   htmlPath: "/app/extension.html",
   navItems: [{ view: "app_view", label: "App" }],
+  adminItems: [
+    {
+      view: "app_admin",
+      label: "App Admin",
+      kicker: "Application",
+      description: "Manage application-specific settings.",
+    },
+  ],
   routes: {
     app_view: {
       path: "/app-view",
@@ -67,9 +75,17 @@ window.cpkitWebappExtension = {
       subtitle: "Application view",
       ensure: "ensureAppView",
     },
+    app_admin: {
+      path: "/admin/app",
+      label: "App Admin",
+      subtitle: "Application administration",
+      adminOnly: true,
+      ensure: "ensureAppAdmin",
+    },
   },
   state: {
     rows: [],
+    adminRows: [],
     loading: { list: false },
   },
   methods: {
@@ -84,6 +100,9 @@ window.cpkitWebappExtension = {
         this.loading.list = false;
       }
     },
+    async ensureAppAdmin() {
+      this.adminRows = await this.apiFetch("/app/admin/resources", { method: "GET" });
+    },
   },
 };
 ```
@@ -91,6 +110,12 @@ window.cpkitWebappExtension = {
 Route `path` values are hash routes in the cpkit shell. API calls should be
 relative to cpkit's `/api` prefix by using the shell-provided `apiFetch()`
 helper.
+
+Use `navItems` for primary topbar pages. Use `adminItems` for application
+pages that should appear inside cpkit's Admin surfaces. Each `adminItems`
+entry must reference a key in `routes`. Admin routes should normally use an
+`/admin/...` path and `adminOnly: true`; cpkit also treats any route referenced
+by `adminItems` as requiring `CP_ADMIN`.
 
 ## Extension HTML Contract
 
@@ -120,6 +145,26 @@ branding:
       <div>
         <h2>App</h2>
         <p>Application-specific data.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<main class="layout" x-show="view === 'app_admin'">
+  <aside class="sidebar">
+    <section>
+      <h2>App Admin</h2>
+      <div class="metric button-stack">
+        <button class="btn primary" @click="ensureAppAdmin()">Refresh</button>
+      </div>
+    </section>
+  </aside>
+
+  <section class="main">
+    <div class="section-head">
+      <div>
+        <h2>App Admin</h2>
+        <p>Application-specific administration.</p>
       </div>
     </div>
   </section>
@@ -166,11 +211,15 @@ broader visual theme.
    - Move app-specific markup into `webapp/extension.html`.
    - Move app-specific state, route registration, and methods into
      `webapp/extension.js`.
+   - Register app admin pages in `adminItems` and back them with routes marked
+     `adminOnly: true`.
    - Move app-specific styles into `webapp/extension.css`.
 
 4. Remove duplicate shell code.
-   - Do not copy cpkit's topbar, auth/login panel, admin pages, jobs page,
+   - Do not copy cpkit's topbar, auth/login panel, admin overview, jobs page,
      events page, settings page, API keys page, or playbooks page.
+   - App-specific admin pages should be extension pages registered through
+     `adminItems`, not copies of cpkit's Admin page.
    - Do not reimplement session/auth UI in the app extension.
 
 5. Preserve API behavior.
@@ -188,6 +237,8 @@ broader visual theme.
    - Run Python compile/import checks for the app.
    - Start the app and confirm the `/app` static mount is present.
    - Confirm each app route renders once and only once.
+   - Confirm each `adminItems` route appears on the Admin page and is hidden
+     from users without `CP_ADMIN`.
    - Confirm app actions call the expected `/api/...` endpoints.
 
 ## Recommended Codex Prompt

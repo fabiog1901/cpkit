@@ -4,6 +4,7 @@ window.app = function () {
     view: "dashboard",
     apiBase: "/api",
     extensionNavItems: Array.isArray(extension.navItems) ? extension.navItems : [],
+    extensionAdminItems: Array.isArray(extension.adminItems) ? extension.adminItems : [],
     brand: {
       logoText: "ck",
       appName: "cpkit",
@@ -250,13 +251,15 @@ window.app = function () {
       else if (parts[0] === "admin" && parts[1] === "api-keys") next = "api_keys";
       else if (parts[0] === "admin" && parts[1] === "settings") next = "settings";
       else if (parts[0] === "admin" && parts[1] === "playbooks") next = "playbooks";
-      else if (parts[0] === "admin") next = "admin";
       else {
         const hashPath = `/${parts.join("/")}`;
-        const matched = Object.entries(extension.routes || {}).find(
-          ([, route]) => route.path === hashPath,
-        );
+        const matched = this.extensionRouteForPath(hashPath);
         if (matched) next = matched[0];
+        else if (parts[0] === "admin") next = "admin";
+      }
+      if (!this.canAccessView(next)) {
+        this.handleForbiddenView(next);
+        return;
       }
       this.view = next;
       this.ensureViewData();
@@ -288,7 +291,7 @@ window.app = function () {
     },
 
     canAccessView(viewName) {
-      if (extension.routes?.[viewName]?.adminOnly) return this.canViewAdmin();
+      if (this.isExtensionAdminView(viewName) || extension.routes?.[viewName]?.adminOnly) return this.canViewAdmin();
       if (!["admin", "api_keys", "settings", "playbooks"].includes(viewName)) return true;
       return this.canViewAdmin();
     },
@@ -338,7 +341,56 @@ window.app = function () {
     },
 
     isAdminSectionView() {
-      return ["admin", "api_keys", "settings", "playbooks"].includes(this.view);
+      return ["admin", "api_keys", "settings", "playbooks"].includes(this.view) || this.isExtensionAdminView(this.view);
+    },
+
+    extensionRouteForPath(path) {
+      return Object.entries(extension.routes || {}).find(([, route]) => route.path === path);
+    },
+
+    builtInAdminItems() {
+      return [
+        {
+          view: "api_keys",
+          label: "API Keys",
+          kicker: "Security",
+          description: "Manage API credentials.",
+        },
+        {
+          view: "settings",
+          label: "Settings",
+          kicker: "Configuration",
+          description: "Update settings and reset defaults.",
+        },
+        {
+          view: "playbooks",
+          label: "Playbooks",
+          kicker: "Automation",
+          description: "Edit versioned playbook content.",
+        },
+      ];
+    },
+
+    normalizedExtensionAdminItems() {
+      return this.extensionAdminItems
+        .filter((item) => item && item.view && extension.routes?.[item.view])
+        .map((item) => {
+          const route = extension.routes[item.view] || {};
+          return {
+            ...item,
+            label: item.label || route.label || item.view,
+            kicker: item.kicker || route.kicker || "Application",
+            description: item.description || route.subtitle || "",
+          };
+        });
+    },
+
+    adminItems() {
+      return [...this.builtInAdminItems(), ...this.normalizedExtensionAdminItems()];
+    },
+
+    isExtensionAdminView(viewName) {
+      return this.extensionAdminItems.some((item) => item?.view === viewName);
     },
 
     async refreshDashboardOverview({ onlyIfEmpty = false } = {}) {
