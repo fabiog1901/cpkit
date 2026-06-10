@@ -164,60 +164,86 @@
       </main>
 
       <main class="layout" x-show="view === 'jobs'">
-        <aside class="sidebar">
+        <aside class="sidebar jobs-sidebar">
           <section>
-            <h2>Jobs</h2>
+            <h2>Summary</h2>
+            <div class="metric">
+              <div class="metric-label">Total Jobs</div>
+              <div class="metric-value" x-text="jobs.length"></div>
+            </div>
+          </section>
+          <section>
+            <h2>Actions</h2>
             <div class="metric button-stack">
-              <button class="btn" @click="refreshJobs()">Refresh</button>
+              <button class="btn" @click="refreshJobs()" :disabled="jobsLoading.list">
+                <span x-show="!jobsLoading.list">Refresh</span>
+                <span x-show="jobsLoading.list">Loading...</span>
+              </button>
               <label class="check-row">
                 <input type="checkbox" x-model="jobsAutoRefreshEnabled" />
-                Auto-refresh
+                Auto-refresh (15s)
               </label>
             </div>
           </section>
-          <section>
-            <h2>Filter</h2>
-            <input class="input" type="search" x-model="jobsFilterQuery" @input="applyJobsFilterSort()"
-              placeholder="Search jobs" />
-          </section>
         </aside>
-        <section class="main">
-          <div class="section-head">
-            <div>
-              <h2>Jobs</h2>
-              <p>Queued, running, and completed framework jobs.</p>
+
+        <section class="main jobs-main">
+          <div class="main-header">
+            <div class="main-header-left">
+              <div class="main-title" x-text="jobsTitle()"></div>
+              <div class="main-subtitle" x-text="jobsSubtitle()"></div>
             </div>
-            <div class="timestamp" x-text="jobsLastUpdatedUtc || '-'"></div>
+
+            <div class="main-actions">
+              <input type="search" class="search-input" placeholder="Filter by id, type, status, or owner..."
+                x-model="jobsFilterQuery" @input="onJobsFilterInput()" />
+              <div class="pill">Updated (UTC): <span x-text="jobsLastUpdatedUtc || '-'"></span></div>
+            </div>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th @click="sortJobs(0)" :class="jobsSortClass(0)">ID</th>
-                  <th @click="sortJobs(1)" :class="jobsSortClass(1)">Type</th>
-                  <th @click="sortJobs(2)" :class="jobsSortClass(2)">Status</th>
-                  <th @click="sortJobs(3)" :class="jobsSortClass(3)">Created by</th>
-                  <th @click="sortJobs(4)" :class="jobsSortClass(4)">Created</th>
-                  <th @click="sortJobs(5)" :class="jobsSortClass(5)">Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="job in jobsVisibleRows" :key="job.job_id">
-                  <tr @click="openJob(job.job_id)" class="clickable-row">
-                    <td x-text="job.job_id"></td>
-                    <td x-text="job.job_type || '-'"></td>
-                    <td><span class="status-pill" :class="statusClass(job.status)" x-text="job.status || '-'"></span>
-                    </td>
-                    <td x-text="job.created_by || '-'"></td>
-                    <td x-text="toUtcStringMaybe(job.created_at)"></td>
-                    <td x-text="toUtcStringMaybe(job.updated_at)"></td>
+
+          <div class="table-container">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-sort="number" :class="jobsSortClass(0)" @click="sortJobs(0)">Job ID</th>
+                    <th data-sort="string" :class="jobsSortClass(1)" @click="sortJobs(1)">Type</th>
+                    <th data-sort="string" :class="jobsSortClass(2)" @click="sortJobs(2)">Status</th>
+                    <th data-sort="string" :class="jobsSortClass(3)" @click="sortJobs(3)">Created By</th>
+                    <th data-sort="date" :class="jobsSortClass(4)" @click="sortJobs(4)">Created (UTC)</th>
+                    <th data-sort="date" :class="jobsSortClass(5)" @click="sortJobs(5)">Updated (UTC)</th>
+                    <th>Description</th>
                   </tr>
-                </template>
-                <tr x-show="jobsVisibleRows.length === 0">
-                  <td colspan="6" class="empty-cell">No jobs found.</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <template x-for="job in jobsVisibleRows" :key="job.job_id">
+                    <tr>
+                      <td>
+                        <a href="#" class="dashboard-link" @click.prevent="openJob(job.job_id)">
+                          <span class="ip-pill clickable" x-text="job.job_id"></span>
+                        </a>
+                      </td>
+                      <td><span class="service-pill" x-text="job.job_type || '-'"></span></td>
+                      <td>
+                        <span class="status" :class="jobStatusClass(job.status)">
+                          <span class="status-dot"></span>
+                          <span x-text="String(job.status || 'unknown').toUpperCase()"></span>
+                        </span>
+                      </td>
+                      <td><span x-text="job.created_by || '-'"></span></td>
+                      <td><span x-text="toUtcStringMaybe(job.created_at)"></span></td>
+                      <td><span x-text="toUtcStringMaybe(job.updated_at)"></span></td>
+                      <td class="events-details-cell">
+                        <pre class="events-yaml" x-text="jobsDescriptionText(job)"></pre>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="!jobsLoading.list && jobsVisibleRows.length === 0">
+                    <td colspan="7" class="empty-cell">No results.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </main>

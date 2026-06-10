@@ -463,17 +463,20 @@ window.app = function () {
 
     jobsCellText(job, index) {
       return [
-        job.job_id,
-        job.job_type,
-        job.status,
-        job.created_by,
-        job.created_at,
-        job.updated_at,
+        job?.job_id,
+        job?.job_type,
+        job?.status,
+        job?.created_by,
+        job?.created_at,
+        job?.updated_at,
       ][index] ?? "";
     },
 
     jobsRowText(job) {
-      return [0, 1, 2, 3, 4, 5].map((idx) => String(this.jobsCellText(job, idx))).join(" ").toLowerCase();
+      return [
+        ...[0, 1, 2, 3, 4, 5].map((idx) => String(this.jobsCellText(job, idx))),
+        this.jobsDescriptionText(job),
+      ].join(" ").toLowerCase();
     },
 
     sortJobs(index) {
@@ -498,6 +501,32 @@ window.app = function () {
       rows.sort((a, b) => this.compareValues(this.jobsCellText(a, this.jobsSortIndex), this.jobsCellText(b, this.jobsSortIndex)));
       if (this.jobsSortDir === "desc") rows.reverse();
       this.jobsVisibleRows = rows;
+    },
+
+    jobsTitle() {
+      return "Jobs";
+    },
+
+    jobsSubtitle() {
+      return "List of visible jobs from the jobs API.";
+    },
+
+    jobsDescriptionText(job) {
+      return this.toYaml(job?.description ?? null);
+    },
+
+    onJobsFilterInput() {
+      this.applyJobsFilterSort();
+    },
+
+    jobStatusClass(status) {
+      const s = String(status || "").toLowerCase();
+      if (!s || s === "unknown") return "status-muted";
+      if (["completed", "succeeded", "success"].includes(s)) return "status-online";
+      if (s === "running") return "status-warning";
+      if (["queued", "pending"].includes(s)) return "status-pending status-pulse";
+      if (["failed", "error", "cancelled"].includes(s)) return "status-offline";
+      return "status-default";
     },
 
     async refreshEvents({ limit = 200, offset = 0 } = {}) {
@@ -907,6 +936,54 @@ window.app = function () {
 
     formatJson(value) {
       return JSON.stringify(value ?? {}, null, 2);
+    },
+
+    toYaml(value) {
+      const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+      const needsQuotes = (s) =>
+        s === "" ||
+        /[:\-?[\]{},#&*!|>'"%@`]/.test(s) ||
+        /^\s|\s$/.test(s) ||
+        /^(true|false|null|~|-?\d+(\.\d+)?)$/i.test(s);
+      const quote = (s) => `"${String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+      const scalar = (v) => {
+        if (v === null || v === undefined) return "null";
+        if (v === true) return "true";
+        if (v === false) return "false";
+        if (typeof v === "number") return Number.isFinite(v) ? String(v) : quote(String(v));
+        if (typeof v === "string") return needsQuotes(v) ? quote(v) : v;
+        return quote(String(v));
+      };
+      const indent = (n) => "  ".repeat(n);
+      const render = (v, depth) => {
+        if (Array.isArray(v)) {
+          if (v.length === 0) return "[]";
+          return v
+            .map((item) => {
+              if (isObj(item) || Array.isArray(item)) {
+                return `${indent(depth)}- ${render(item, depth + 1).trimStart()}`;
+              }
+              return `${indent(depth)}- ${scalar(item)}`;
+            })
+            .join("\n");
+        }
+        if (isObj(v)) {
+          const keys = Object.keys(v);
+          if (keys.length === 0) return "{}";
+          return keys
+            .map((key) => {
+              const val = v[key];
+              const keyStr = needsQuotes(key) ? quote(key) : key;
+              if (isObj(val) || Array.isArray(val)) {
+                return `${indent(depth)}${keyStr}:\n${render(val, depth + 1)}`;
+              }
+              return `${indent(depth)}${keyStr}: ${scalar(val)}`;
+            })
+            .join("\n");
+        }
+        return scalar(v);
+      };
+      return render(value, 0);
     },
 
     statusClass(status) {
