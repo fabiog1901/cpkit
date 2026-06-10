@@ -82,6 +82,13 @@ window.cpkitWebappExtension = {
       adminOnly: true,
       ensure: "ensureAppAdmin",
     },
+    app_item: {
+      path: "/app/items/detail",
+      label: "App Item",
+      subtitle: "Application item details",
+      ensure: "ensureAppItem",
+      match: (path) => /^\/app\/items\/[^/]+$/.test(path),
+    },
   },
   state: {
     rows: [],
@@ -107,9 +114,11 @@ window.cpkitWebappExtension = {
 };
 ```
 
-Route `path` values are hash routes in the cpkit shell. API calls should be
-relative to cpkit's `/api` prefix by using the shell-provided `apiFetch()`
-helper.
+Route `path` values are hash routes in the cpkit shell. Static routes match
+exactly. If an app needs dynamic hash paths, such as `/app/items/<id>`, add a
+`match(path)` function to the route and parse the selected ID from
+`window.location.hash` or a helper method. API calls should be relative to
+cpkit's `/api` prefix by using the shell-provided `apiFetch()` helper.
 
 Use `navItems` for primary topbar pages. Use `adminItems` for application
 pages that should appear inside cpkit's Admin surfaces. Each `adminItems`

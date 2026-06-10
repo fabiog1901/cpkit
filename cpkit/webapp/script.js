@@ -97,9 +97,12 @@ window.app = function () {
       this.restoreLocalState();
       await this.checkAuth();
       if (!this.isAuthenticated) return;
-      this.applyRouteFromHash();
-      window.addEventListener("hashchange", () => this.applyRouteFromHash());
-      await this.ensureViewData();
+      await this.applyRouteFromHash();
+      window.addEventListener("hashchange", () => {
+        Promise.resolve(this.applyRouteFromHash()).catch((e) => {
+          this.viewNotice = this.errorMessage(e, "Failed to apply route.");
+        });
+      });
       this.setManagedInterval("_jobsAutoTimer", () => {
         if (this.jobsAutoRefreshEnabled && this.view === "jobs") this.refreshJobs();
       });
@@ -252,21 +255,20 @@ window.app = function () {
       }
     },
 
-    applyRouteFromHash() {
-      const hash = window.location.hash.replace(/^#/, "");
-      const parts = hash.split("/").filter(Boolean);
+    async applyRouteFromHash() {
+      const route = this.parseHashRoute();
+      const parts = route.parts;
       let next = "dashboard";
       if (parts[0] === "jobs" && parts[1]) {
         next = "job";
-        this.selectedJobId = decodeURIComponent(parts[1]);
+        this.selectedJobId = parts[1];
       } else if (parts[0] === "jobs") next = "jobs";
       else if (parts[0] === "events") next = "events";
       else if (parts[0] === "admin" && parts[1] === "api-keys") next = "api_keys";
       else if (parts[0] === "admin" && parts[1] === "settings") next = "settings";
       else if (parts[0] === "admin" && parts[1] === "playbooks") next = "playbooks";
       else {
-        const hashPath = `/${parts.join("/")}`;
-        const matched = this.extensionRouteForPath(hashPath);
+        const matched = this.extensionRouteForPath(route.path);
         if (matched) next = matched[0];
         else if (parts[0] === "admin") next = "admin";
       }
@@ -275,7 +277,31 @@ window.app = function () {
         return;
       }
       this.view = next;
-      this.ensureViewData();
+      await this.ensureViewData();
+    },
+
+    parseHashRoute() {
+      const rawHash = String(window.location.hash || "").trim();
+      const fragment = rawHash.startsWith("#") ? rawHash.slice(1) : rawHash;
+      const normalized = fragment.startsWith("/") ? fragment : `/${fragment}`;
+      const [pathPart, queryString = ""] = normalized.split("?");
+      const path = pathPart || "/";
+      const parts = path
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => {
+          try {
+            return decodeURIComponent(segment);
+          } catch {
+            return segment;
+          }
+        });
+      const query = {};
+      const params = new URLSearchParams(queryString);
+      params.forEach((value, key) => {
+        query[key] = value;
+      });
+      return { path, parts, query };
     },
 
     routeForView(view) {
@@ -358,7 +384,11 @@ window.app = function () {
     },
 
     extensionRouteForPath(path) {
-      return Object.entries(extension.routes || {}).find(([, route]) => route.path === path);
+      return Object.entries(extension.routes || {}).find(([, route]) => {
+        if (typeof route.match === "function" && route.match(path)) return true;
+        if (route.path === path) return true;
+        return false;
+      });
     },
 
     builtInAdminItems() {
