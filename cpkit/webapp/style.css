@@ -303,6 +303,13 @@ select {
   font-weight: 500;
 }
 
+.job-detail-title {
+  color: #f0fdfa;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
 .main-subtitle {
   color: var(--muted);
   font-size: 13px;
@@ -335,11 +342,22 @@ select {
   gap: 14px;
 }
 
+.dashboard-home {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .dashboard-admin-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .dashboard-card {
+  display: grid;
+  gap: 10px;
   padding: 16px;
   color: var(--text);
   text-align: left;
@@ -371,6 +389,71 @@ select {
   font-size: 36px;
   font-weight: 700;
   color: #e0f2fe;
+}
+
+.job-detail-main {
+  overflow: hidden;
+}
+
+.job-detail-home {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.job-details-grid {
+  align-items: start;
+}
+
+.job-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.job-fact {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(184, 171, 157, 0.12);
+  border-radius: 12px;
+  background: rgba(31, 23, 18, 0.56);
+}
+
+.job-fact-label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.job-command {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(184, 171, 157, 0.14);
+  border-radius: 12px;
+  background: rgba(19, 14, 11, 0.96);
+  color: #ffedd5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.job-actions-card {
+  min-height: auto;
+}
+
+.job-tasks-card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.job-empty-state {
+  max-width: 720px;
+  margin: 40px auto;
 }
 
 .dashboard-kv-grid {

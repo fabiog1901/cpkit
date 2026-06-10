@@ -33,6 +33,7 @@ window.app = function () {
     selectedJobId: "",
     selectedJobDetails: null,
     jobLoading: { details: false, reschedule: false },
+    jobDetailsAutoRefreshEnabled: true,
 
     events: [],
     eventsVisibleRows: [],
@@ -95,6 +96,9 @@ window.app = function () {
       await this.ensureViewData();
       this.setManagedInterval("_jobsAutoTimer", () => {
         if (this.jobsAutoRefreshEnabled && this.view === "jobs") this.refreshJobs();
+      });
+      this.setManagedInterval("_jobDetailsAutoTimer", () => {
+        if (this.jobDetailsAutoRefreshEnabled && this.view === "job") this.refreshSelectedJobDetails();
       });
       this.setManagedInterval("_eventsAutoTimer", () => {
         if (this.eventsAutoRefreshEnabled && this.view === "events") this.refreshEvents();
@@ -513,6 +517,11 @@ window.app = function () {
 
     jobsDescriptionText(job) {
       return this.toYaml(job?.description ?? null);
+    },
+
+    jobTaskDescriptionText(task) {
+      if (typeof task?.task_desc === "string") return task.task_desc;
+      return this.toYaml(task?.task_desc ?? null);
     },
 
     onJobsFilterInput() {

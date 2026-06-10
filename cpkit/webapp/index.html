@@ -251,25 +251,124 @@
       <main class="layout" x-show="view === 'job'">
         <aside class="sidebar">
           <section>
-            <h2>Job</h2>
+            <h2>Navigation</h2>
             <div class="metric button-stack">
               <button class="btn" @click="setView('jobs')">Back to Jobs</button>
-              <button class="btn" @click="refreshSelectedJobDetails()">Refresh</button>
-              <button class="btn" @click="rescheduleSelectedJob()" :disabled="jobLoading.reschedule">
-                <span x-show="!jobLoading.reschedule">Reschedule</span>
-                <span x-show="jobLoading.reschedule">Rescheduling...</span>
+              <button class="btn" @click="refreshSelectedJobDetails()" :disabled="jobLoading.details || !selectedJobId">
+                <span x-show="!jobLoading.details">Refresh</span>
+                <span x-show="jobLoading.details">Loading...</span>
               </button>
+              <label class="check-row">
+                <input type="checkbox" x-model="jobDetailsAutoRefreshEnabled" />
+                Auto-refresh (15s)
+              </label>
             </div>
           </section>
         </aside>
-        <section class="main">
-          <div class="section-head">
-            <div>
-              <h2>Job <span x-text="selectedJobId"></span></h2>
-              <p x-text="selectedJobDetails?.job?.job_type || selectedJobDetails?.job_type || 'Job details'"></p>
+
+        <section class="main job-detail-main">
+          <div class="main-header">
+            <div class="main-header-left">
+              <div class="main-title job-detail-title">
+                <span>Job</span>
+                <span x-text="selectedJobDetails?.job?.job_id || selectedJobId || '-'"></span>
+              </div>
+            </div>
+            <div class="main-actions">
+              <button class="btn" @click="rescheduleSelectedJob()" :disabled="jobLoading.reschedule || !selectedJobId">
+                <span x-show="!jobLoading.reschedule">Reschedule Job</span>
+                <span x-show="jobLoading.reschedule">Rescheduling...</span>
+              </button>
+              <span class="status" :class="jobStatusClass(selectedJobDetails?.job?.status)">
+                <span class="status-dot"></span>
+                <span x-text="String(selectedJobDetails?.job?.status || 'unknown').toUpperCase()"></span>
+              </span>
             </div>
           </div>
-          <pre class="json-panel" x-text="formatJson(selectedJobDetails)"></pre>
+
+          <div class="dashboard-home job-detail-home" x-show="selectedJobDetails">
+            <section class="dashboard-grid job-details-grid">
+              <article class="dashboard-card">
+                <div class="dashboard-card-head">
+                  <div>
+                    <div class="dashboard-card-kicker">Overview</div>
+                  </div>
+                </div>
+                <div class="job-facts">
+                  <div class="job-fact">
+                    <span class="job-fact-label">Type</span>
+                    <span class="service-pill" x-text="selectedJobDetails?.job?.job_type || '-'"></span>
+                  </div>
+                  <div class="job-fact">
+                    <span class="job-fact-label">Created By</span>
+                    <span x-text="selectedJobDetails?.job?.created_by || '-'"></span>
+                  </div>
+                  <div class="job-fact">
+                    <span class="job-fact-label">Created</span>
+                    <span x-text="toUtcStringMaybe(selectedJobDetails?.job?.created_at)"></span>
+                  </div>
+                  <div class="job-fact">
+                    <span class="job-fact-label">Updated</span>
+                    <span x-text="toUtcStringMaybe(selectedJobDetails?.job?.updated_at)"></span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="dashboard-card">
+                <div class="dashboard-card-head">
+                  <div>
+                    <div class="dashboard-card-kicker">Description</div>
+                  </div>
+                </div>
+                <pre class="job-command"
+                  x-text="selectedJobDetails?.description_yaml || jobsDescriptionText(selectedJobDetails?.job || {})"></pre>
+              </article>
+            </section>
+
+            <section class="dashboard-card job-actions-card job-tasks-card">
+              <div class="dashboard-card-head">
+                <div>
+                  <div class="dashboard-card-kicker">Tasks</div>
+                </div>
+                <div class="dashboard-stat" x-text="selectedJobDetails?.tasks?.length ?? 0"></div>
+              </div>
+              <div class="table-container">
+                <div class="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Task ID</th>
+                        <th>Created (UTC)</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="task in (selectedJobDetails?.tasks || [])"
+                        :key="`${task.job_id}-${task.task_id}`">
+                        <tr>
+                          <td><span class="ip-pill" x-text="task.task_id"></span></td>
+                          <td><span x-text="toUtcStringMaybe(task.created_at)"></span></td>
+                          <td><span x-text="task.task_name || '-'"></span></td>
+                          <td class="events-details-cell">
+                            <pre class="events-yaml" x-text="jobTaskDescriptionText(task)"></pre>
+                          </td>
+                        </tr>
+                      </template>
+                      <tr x-show="!jobLoading.details && (!selectedJobDetails?.tasks || selectedJobDetails.tasks.length === 0)">
+                        <td colspan="4" class="empty-cell">No tasks returned.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="metric job-empty-state" x-show="!selectedJobDetails && !jobLoading.details">
+            <div class="main-title">Job not loaded</div>
+            <div class="main-subtitle">Select a job from the Jobs page to view its details.</div>
+          </div>
         </section>
       </main>
 
