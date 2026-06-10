@@ -355,6 +355,10 @@ select {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.admin-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .dashboard-card {
   display: grid;
   gap: 10px;
@@ -369,6 +373,86 @@ select {
 
 .dashboard-card-button:hover {
   border-color: rgba(45, 212, 191, 0.55);
+}
+
+.admin-card {
+  min-height: 148px;
+  gap: 8px;
+}
+
+.admin-card-button {
+  width: 100%;
+  border: 1px solid rgba(184, 171, 157, 0.16);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.admin-card-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 212, 191, 0.34);
+  background: linear-gradient(180deg, rgba(39, 29, 22, 0.96), rgba(21, 16, 12, 0.98));
+  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.12);
+}
+
+.admin-card-button:hover .dashboard-card-title,
+.admin-card-button:hover .dashboard-stat {
+  color: #e0f2fe;
+}
+
+.admin-card-button:focus-visible {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.22);
+}
+
+.admin-card .dashboard-card-copy {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.admin-card .dashboard-stat {
+  font-size: 24px;
+}
+
+.admin-card .dashboard-card-title {
+  font-size: 16px;
+}
+
+.admin-card-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-card-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(45, 212, 191, 0.24);
+  border-radius: 8px;
+  background: rgba(45, 212, 191, 0.08);
+  color: #8ff7ea;
+}
+
+.admin-card-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.admin-card-button:hover .admin-card-icon {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: rgba(56, 189, 248, 0.12);
+  color: #bae6fd;
 }
 
 .dashboard-card-head,
@@ -1017,6 +1101,7 @@ th[data-sort].sort-desc::after,
   }
 
   .dashboard-grid,
+  .admin-grid,
   .dashboard-admin-grid,
   .dashboard-kv-grid {
     grid-template-columns: 1fr;

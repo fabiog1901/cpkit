@@ -357,20 +357,26 @@ window.app = function () {
         {
           view: "api_keys",
           label: "API Keys",
-          kicker: "Security",
-          description: "Manage API credentials.",
+          kicker: "Access",
+          description: "Role-scoped access keys and one-time secret issuance.",
+          icon: "key",
+          countKey: "apiKeys",
         },
         {
           view: "settings",
           label: "Settings",
           kicker: "Configuration",
-          description: "Update settings and reset defaults.",
+          description: "Dynamic framework settings and effective values.",
+          icon: "settings",
+          countKey: "settings",
         },
         {
           view: "playbooks",
           label: "Playbooks",
           kicker: "Automation",
-          description: "Edit versioned playbook content.",
+          description: "Versioned playbook content used by cpkit jobs.",
+          icon: "book",
+          countKey: "pbVersions",
         },
       ];
     },
@@ -385,12 +391,23 @@ window.app = function () {
             label: item.label || route.label || item.view,
             kicker: item.kicker || route.kicker || "Application",
             description: item.description || route.subtitle || "",
+            icon: item.icon || route.icon || "app",
+            countKey: item.countKey || route.countKey || "",
           };
         });
     },
 
     adminItems() {
       return [...this.builtInAdminItems(), ...this.normalizedExtensionAdminItems()];
+    },
+
+    adminItemCount(item) {
+      if (!item?.countKey) return "";
+      const value = this[item.countKey];
+      if (Array.isArray(value)) return value.length;
+      if (value && typeof value === "object") return Object.keys(value).length;
+      if (typeof value === "number") return value;
+      return "";
     },
 
     isExtensionAdminView(viewName) {
