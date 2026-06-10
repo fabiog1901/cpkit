@@ -627,6 +627,17 @@ select {
   background: rgba(20, 184, 166, 0.18);
 }
 
+.btn-warn {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(120, 53, 15, 0.32);
+}
+
+.btn-danger {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: var(--danger-soft);
+  color: #fecaca;
+}
+
 .btn.danger,
 .notice.danger {
   border-color: rgba(248, 113, 113, 0.45);
@@ -659,6 +670,75 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.roles-wrap,
+.table-actions,
+.playbook-load-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.setting-key-cell,
+.setting-value-cell {
+  display: grid;
+  gap: 8px;
+}
+
+.setting-value-cell {
+  min-width: 260px;
+}
+
+.setting-table-input {
+  min-width: 260px;
+}
+
+.setting-source-pill {
+  width: fit-content;
+  padding: 3px 8px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.1);
+  color: #fde68a;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--muted);
+  padding: 7px 11px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings-tab:hover,
+.settings-tab.is-active {
+  border-color: rgba(56, 189, 248, 0.75);
+  color: #e0f2fe;
+}
+
+.settings-tab-count {
+  min-width: 20px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+  color: #dbeafe;
+  padding: 1px 6px;
+  text-align: center;
 }
 
 .notice {
@@ -1014,8 +1094,68 @@ th[data-sort].sort-desc::after,
 }
 
 .editor {
+  width: 100%;
   min-height: 520px;
   overflow: hidden;
+}
+
+.editor-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 11px;
+  background: rgba(15, 23, 42, 0.95);
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.9);
+}
+
+.editor-toolbar {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 11px;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.playbook-meta-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.4fr) minmax(180px, 0.7fr) minmax(220px, 1fr);
+  gap: 10px;
+}
+
+.playbook-meta-card {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.4);
+}
+
+.playbook-meta-value {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.select {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.62);
+  color: var(--text);
+  padding: 8px 10px;
+}
+
+.select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .modal-backdrop {
@@ -1103,7 +1243,8 @@ th[data-sort].sort-desc::after,
   .dashboard-grid,
   .admin-grid,
   .dashboard-admin-grid,
-  .dashboard-kv-grid {
+  .dashboard-kv-grid,
+  .playbook-meta-grid {
     grid-template-columns: 1fr;
   }
 

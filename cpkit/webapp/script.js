@@ -49,7 +49,11 @@ window.app = function () {
     apiKeysVisibleRows: [],
     apiKeysFilterQuery: "",
     apiKeysLastUpdatedUtc: null,
+    apiKeysSortIndex: 2,
+    apiKeysSortDir: "desc",
     apiKeysLoading: { list: false, create: false, delete: false },
+    apiKeysAutoRefreshEnabled: true,
+    _apiKeysAutoTimer: null,
 
     settings: [],
     settingsVisibleRows: [],
@@ -57,6 +61,8 @@ window.app = function () {
     settingsCategoryTab: "all",
     settingsLastUpdatedUtc: null,
     settingsDrafts: {},
+    settingsSortIndex: 0,
+    settingsSortDir: "asc",
     settingsLoading: { list: false, update: false, reset: false },
     settingsAutoRefreshEnabled: true,
     settingsToast: { message: "", ok: true },
@@ -103,9 +109,12 @@ window.app = function () {
       this.setManagedInterval("_eventsAutoTimer", () => {
         if (this.eventsAutoRefreshEnabled && this.view === "events") this.refreshEvents();
       });
+      this.setManagedInterval("_apiKeysAutoTimer", () => {
+        if (this.apiKeysAutoRefreshEnabled && this.view === "api_keys") this.refreshApiKeys();
+      }, 20000);
       this.setManagedInterval("_settingsAutoTimer", () => {
         if (this.settingsAutoRefreshEnabled && this.view === "settings") this.refreshSettings();
-      });
+      }, 20000);
       this.refreshDashboardOverview({ onlyIfEmpty: true });
       if (typeof extension.init === "function") {
         await extension.init.call(this);
@@ -637,10 +646,37 @@ window.app = function () {
       localStorage.setItem("cpkit_api_keys_filter", this.apiKeysFilterQuery || "");
       const q = String(this.apiKeysFilterQuery || "").toLowerCase().trim();
       let rows = this.apiKeys.slice();
-      if (q) rows = rows.filter((row) => JSON.stringify(row).toLowerCase().includes(q));
-      rows.sort((a, b) => this.compareValues(a.valid_until, b.valid_until));
-      rows.reverse();
+      if (q) rows = rows.filter((row) => this.apiKeysRowText(row).includes(q));
+      rows.sort((a, b) => this.compareValues(this.apiKeysCellText(a, this.apiKeysSortIndex), this.apiKeysCellText(b, this.apiKeysSortIndex)));
+      if (this.apiKeysSortDir === "desc") rows.reverse();
       this.apiKeysVisibleRows = rows;
+    },
+
+    apiKeysCellText(row, index) {
+      return [
+        row?.access_key,
+        row?.owner,
+        row?.valid_until,
+        this.rolesText(row?.roles),
+      ][index] ?? "";
+    },
+
+    apiKeysRowText(row) {
+      return [0, 1, 2, 3].map((idx) => String(this.apiKeysCellText(row, idx))).join(" ").toLowerCase();
+    },
+
+    sortApiKeys(index) {
+      if (this.apiKeysSortIndex === index) this.apiKeysSortDir = this.apiKeysSortDir === "asc" ? "desc" : "asc";
+      else {
+        this.apiKeysSortIndex = index;
+        this.apiKeysSortDir = index === 2 ? "desc" : "asc";
+      }
+      this.applyApiKeysFilterSort();
+    },
+
+    apiKeysSortClass(index) {
+      if (this.apiKeysSortIndex !== index) return "";
+      return this.apiKeysSortDir === "asc" ? "sort-asc" : "sort-desc";
     },
 
     openApiKeyCreateModal() {
@@ -708,6 +744,11 @@ window.app = function () {
       return [...new Set(this.settings.map((row) => String(row.category || "").trim()).filter(Boolean))].sort();
     },
 
+    settingsCategoryCount(category) {
+      if (category === "all") return this.settings.length;
+      return this.settings.filter((row) => String(row.category || "").trim() === category).length;
+    },
+
     setSettingsCategory(category) {
       this.settingsCategoryTab = category || "all";
       localStorage.setItem("cpkit_settings_category", this.settingsCategoryTab);
@@ -722,6 +763,19 @@ window.app = function () {
       this.settingsDrafts = { ...this.settingsDrafts, [key]: value };
     },
 
+    isSettingDirty(row) {
+      return String(this.settingDraftValue(row)) !== String(row.effective_value ?? row.default_value ?? "");
+    },
+
+    isSettingOverridden(row) {
+      return String(row?.effective_value ?? "") !== String(row?.default_value ?? "");
+    },
+
+    settingValuePreview(row, value) {
+      if (row?.is_secret) return "secret";
+      return value === null || value === undefined || value === "" ? "-" : String(value);
+    },
+
     applySettingsFilterSort() {
       localStorage.setItem("cpkit_settings_filter", this.settingsFilterQuery || "");
       const q = String(this.settingsFilterQuery || "").toLowerCase().trim();
@@ -729,9 +783,46 @@ window.app = function () {
       if (this.settingsCategoryTab !== "all") {
         rows = rows.filter((row) => String(row.category || "") === this.settingsCategoryTab);
       }
-      if (q) rows = rows.filter((row) => JSON.stringify(row).toLowerCase().includes(q));
-      rows.sort((a, b) => this.compareValues(a.key, b.key));
+      if (q) rows = rows.filter((row) => this.settingsRowText(row).includes(q));
+      rows.sort((a, b) => this.compareValues(this.settingsCellText(a, this.settingsSortIndex), this.settingsCellText(b, this.settingsSortIndex)));
+      if (this.settingsSortDir === "desc") rows.reverse();
       this.settingsVisibleRows = rows;
+    },
+
+    settingsCellText(row, index) {
+      return [
+        row?.key,
+        row?.value_type,
+        this.settingDraftValue(row),
+        row?.default_value,
+        row?.updated_at,
+      ][index] ?? "";
+    },
+
+    settingsRowText(row) {
+      return [
+        row?.key,
+        row?.category,
+        row?.value_type,
+        this.settingDraftValue(row),
+        row?.default_value,
+        row?.description,
+        row?.updated_at,
+      ].map((value) => String(value ?? "")).join(" ").toLowerCase();
+    },
+
+    sortSettings(index) {
+      if (this.settingsSortIndex === index) this.settingsSortDir = this.settingsSortDir === "asc" ? "desc" : "asc";
+      else {
+        this.settingsSortIndex = index;
+        this.settingsSortDir = index === 4 ? "desc" : "asc";
+      }
+      this.applySettingsFilterSort();
+    },
+
+    settingsSortClass(index) {
+      if (this.settingsSortIndex !== index) return "";
+      return this.settingsSortDir === "asc" ? "sort-asc" : "sort-desc";
     },
 
     async saveSetting(key) {

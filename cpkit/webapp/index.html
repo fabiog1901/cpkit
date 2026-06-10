@@ -513,52 +513,84 @@
       <main class="layout" x-show="view === 'api_keys'">
         <aside class="sidebar">
           <section>
-            <h2>API Keys</h2>
-            <div class="metric button-stack">
-              <button class="btn" @click="refreshApiKeys()">Refresh</button>
-              <button class="btn primary" @click="openApiKeyCreateModal()">Create Key</button>
+            <h2>Summary</h2>
+            <div class="metric">
+              <div class="metric-label">Total API Keys</div>
+              <div class="metric-value" x-text="apiKeys.length"></div>
             </div>
           </section>
           <section>
-            <h2>Filter</h2>
-            <input class="input" type="search" x-model="apiKeysFilterQuery" @input="applyApiKeysFilterSort()"
-              placeholder="Search keys" />
+            <h2>Actions</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="refreshApiKeys()" :disabled="apiKeysLoading.list">
+                <span x-show="!apiKeysLoading.list">Refresh</span>
+                <span x-show="apiKeysLoading.list">Loading...</span>
+              </button>
+              <button class="btn btn-warn" @click="openApiKeyCreateModal()">Create key...</button>
+              <label class="check-row">
+                <input type="checkbox" x-model="apiKeysAutoRefreshEnabled" />
+                Auto-refresh (20s)
+              </label>
+            </div>
           </section>
         </aside>
         <section class="main">
-          <div class="section-head">
-            <div>
-              <h2>API Keys</h2>
-              <p>HMAC credentials for programmatic access.</p>
+          <div class="main-header">
+            <div class="main-header-left">
+              <div class="main-title">API Keys</div>
+              <div class="main-subtitle">Create role-scoped keys, review owners, and delete old credentials.</div>
             </div>
-            <div class="timestamp" x-text="apiKeysLastUpdatedUtc || '-'"></div>
+            <div class="main-actions">
+              <input type="search" class="search-input" placeholder="Filter by access key, owner, or role..."
+                x-model="apiKeysFilterQuery" @input="applyApiKeysFilterSort()" />
+              <div class="pill">Updated (UTC): <span x-text="apiKeysLastUpdatedUtc || '-'"></span></div>
+            </div>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Access key</th>
-                  <th>Owner</th>
-                  <th>Valid until</th>
-                  <th>Roles</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="row in apiKeysVisibleRows" :key="row.access_key">
+
+          <div class="table-container">
+            <div class="table-scroll">
+              <table>
+                <thead>
                   <tr>
-                    <td x-text="row.access_key"></td>
-                    <td x-text="row.owner || '-'"></td>
-                    <td x-text="toUtcStringMaybe(row.valid_until)"></td>
-                    <td x-text="rolesText(row.roles)"></td>
-                    <td><button class="btn danger" @click="deleteApiKey(row.access_key)">Delete</button></td>
+                    <th data-sort="string" :class="apiKeysSortClass(0)" @click="sortApiKeys(0)">Access Key</th>
+                    <th data-sort="string" :class="apiKeysSortClass(1)" @click="sortApiKeys(1)">Owner</th>
+                    <th data-sort="date" :class="apiKeysSortClass(2)" @click="sortApiKeys(2)">Valid Until (UTC)</th>
+                    <th data-sort="string" :class="apiKeysSortClass(3)" @click="sortApiKeys(3)">Roles</th>
+                    <th>Act</th>
                   </tr>
-                </template>
-                <tr x-show="apiKeysVisibleRows.length === 0">
-                  <td colspan="5" class="empty-cell">No API keys found.</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <template x-for="row in apiKeysVisibleRows" :key="row.access_key">
+                    <tr>
+                      <td><span class="ip-pill" x-text="row.access_key || '-'"></span></td>
+                      <td><span x-text="row.owner || '-'"></span></td>
+                      <td><span x-text="toUtcStringMaybe(row.valid_until)"></span></td>
+                      <td>
+                        <div class="roles-wrap" x-show="Array.isArray(row.roles) && row.roles.length > 0">
+                          <template x-for="role in row.roles" :key="`${row.access_key}-${role}`">
+                            <span class="service-pill" x-text="role"></span>
+                          </template>
+                        </div>
+                        <span class="muted" x-show="!Array.isArray(row.roles) || row.roles.length === 0">-</span>
+                      </td>
+                      <td>
+                        <button class="icon-btn" title="Delete API key" @click="deleteApiKey(row.access_key)">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M8 6V4h8v2" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                            <path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                            <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="!apiKeysLoading.list && apiKeysVisibleRows.length === 0">
+                    <td colspan="5" class="empty-cell">No results.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </main>
@@ -566,77 +598,106 @@
       <main class="layout" x-show="view === 'settings'">
         <aside class="sidebar">
           <section>
-            <h2>Settings</h2>
-            <div class="metric button-stack">
-              <button class="btn" @click="refreshSettings()">Refresh</button>
-              <label class="check-row">
-                <input type="checkbox" x-model="settingsAutoRefreshEnabled" />
-                Auto-refresh
-              </label>
+            <h2>Summary</h2>
+            <div class="metric">
+              <div class="metric-label">Total Settings</div>
+              <div class="metric-value" x-text="settings.length"></div>
             </div>
           </section>
           <section>
-            <h2>Filter</h2>
-            <input class="input" type="search" x-model="settingsFilterQuery" @input="applySettingsFilterSort()"
-              placeholder="Search settings" />
-          </section>
-          <section>
-            <h2>Category</h2>
-            <div class="chip-list">
-              <button class="chip" :class="{ active: settingsCategoryTab === 'all' }"
-                @click="setSettingsCategory('all')">All</button>
-              <template x-for="category in settingsCategories()" :key="category">
-                <button class="chip" :class="{ active: settingsCategoryTab === category }"
-                  @click="setSettingsCategory(category)" x-text="category"></button>
-              </template>
+            <h2>Actions</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="refreshSettings()" :disabled="settingsLoading.list">
+                <span x-show="!settingsLoading.list">Refresh</span>
+                <span x-show="settingsLoading.list">Loading...</span>
+              </button>
+              <label class="check-row">
+                <input type="checkbox" x-model="settingsAutoRefreshEnabled" />
+                Auto-refresh (20s)
+              </label>
             </div>
           </section>
         </aside>
         <section class="main">
-          <div class="section-head">
-            <div>
-              <h2>Settings</h2>
-              <p>Dynamic framework configuration.</p>
+          <div class="main-header">
+            <div class="main-header-left">
+              <div class="main-title">Settings</div>
+              <div class="main-subtitle">Edit the effective value inline, then save or reset a setting back to its default.</div>
             </div>
-            <div class="timestamp" x-text="settingsLastUpdatedUtc || '-'"></div>
+            <div class="main-actions">
+              <input type="search" class="search-input" placeholder="Filter by key, category, type, or value..."
+                x-model="settingsFilterQuery" @input="applySettingsFilterSort()" />
+              <div class="pill">Updated (UTC): <span x-text="settingsLastUpdatedUtc || '-'"></span></div>
+            </div>
           </div>
+
           <div class="notice" :class="{ danger: !settingsToast.ok, success: settingsToast.ok }"
             x-show="settingsToast.message" x-text="settingsToast.message"></div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Key</th>
-                  <th>Type</th>
-                  <th>Value</th>
-                  <th>Default</th>
-                  <th>Updated</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="row in settingsVisibleRows" :key="row.key">
+
+          <div class="settings-tabs">
+            <button type="button" class="settings-tab" :class="{ 'is-active': settingsCategoryTab === 'all' }"
+              @click="setSettingsCategory('all')">
+              <span>All</span>
+              <span class="settings-tab-count" x-text="settingsCategoryCount('all')"></span>
+            </button>
+            <template x-for="category in settingsCategories()" :key="`settings-category-${category}`">
+              <button type="button" class="settings-tab" :class="{ 'is-active': settingsCategoryTab === category }"
+                @click="setSettingsCategory(category)">
+                <span x-text="category"></span>
+                <span class="settings-tab-count" x-text="settingsCategoryCount(category)"></span>
+              </button>
+            </template>
+          </div>
+
+          <div class="table-container">
+            <div class="table-scroll">
+              <table>
+                <thead>
                   <tr>
-                    <td>
-                      <div class="strong" x-text="row.key"></div>
-                      <div class="muted" x-text="row.description || ''"></div>
-                    </td>
-                    <td x-text="row.value_type || '-'"></td>
-                    <td><input class="input table-input" :type="row.is_secret ? 'password' : 'text'"
-                        :value="settingDraftValue(row)" @input="setSettingDraft(row.key, $event.target.value)" /></td>
-                    <td x-text="row.is_secret ? 'secret' : (row.default_value ?? '')"></td>
-                    <td x-text="toUtcStringMaybe(row.updated_at)"></td>
-                    <td class="row-actions">
-                      <button class="btn" @click="saveSetting(row.key)">Save</button>
-                      <button class="btn" @click="resetSetting(row.key)">Reset</button>
-                    </td>
+                    <th data-sort="string" :class="settingsSortClass(0)" @click="sortSettings(0)">Key</th>
+                    <th data-sort="string" :class="settingsSortClass(1)" @click="sortSettings(1)">Type</th>
+                    <th data-sort="string" :class="settingsSortClass(2)" @click="sortSettings(2)">Value</th>
+                    <th data-sort="string" :class="settingsSortClass(3)" @click="sortSettings(3)">Default</th>
+                    <th data-sort="date" :class="settingsSortClass(4)" @click="sortSettings(4)">Updated (UTC)</th>
+                    <th>Act</th>
                   </tr>
-                </template>
-                <tr x-show="settingsVisibleRows.length === 0">
-                  <td colspan="6" class="empty-cell">No settings found.</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <template x-for="row in settingsVisibleRows" :key="row.key">
+                    <tr>
+                      <td>
+                        <div class="setting-key-cell">
+                          <span class="ip-pill" x-text="row.key"></span>
+                          <span class="setting-source-pill" x-show="isSettingOverridden(row)">modified</span>
+                        </div>
+                      </td>
+                      <td><span class="service-pill" x-text="row.value_type || '-'"></span></td>
+                      <td>
+                        <div class="setting-value-cell">
+                          <input class="input setting-table-input" :type="row.is_secret ? 'password' : 'text'"
+                            :value="settingDraftValue(row)" @input="setSettingDraft(row.key, $event.target.value)"
+                            :placeholder="row.is_secret ? 'Hidden secret value' : ''" />
+                          <div class="metric-sub" x-show="row.description" x-text="row.description"></div>
+                        </div>
+                      </td>
+                      <td><span x-text="settingValuePreview(row, row.default_value)"></span></td>
+                      <td><span x-text="toUtcStringMaybe(row.updated_at)"></span></td>
+                      <td>
+                        <div class="table-actions">
+                          <button class="btn" :disabled="settingsLoading.update || !isSettingDirty(row)"
+                            @click="saveSetting(row.key)">Save</button>
+                          <button class="btn btn-danger" :disabled="settingsLoading.reset"
+                            @click="resetSetting(row.key)">Reset</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="!settingsLoading.list && settingsVisibleRows.length === 0">
+                    <td colspan="6" class="empty-cell">No results.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </main>
@@ -644,38 +705,81 @@
       <main class="layout" x-show="view === 'playbooks'">
         <aside class="sidebar">
           <section>
-            <h2>Playbooks</h2>
-            <div class="metric button-stack">
-              <input class="input" x-model="selectedPlaybook" placeholder="PLAYBOOK_NAME" />
-              <button class="btn" @click="loadPlaybookSelection(selectedPlaybook)">Load</button>
-              <button class="btn primary" @click="savePlaybook()">Save</button>
+            <h2>Summary</h2>
+            <div class="metric">
+              <div class="metric-label">Versions</div>
+              <div class="metric-value" x-text="pbVersions.length"></div>
+              <div class="metric-sub" x-text="selectedPlaybook || 'No playbook loaded'"></div>
             </div>
           </section>
           <section>
-            <h2>Versions</h2>
-            <select class="input" x-model="pbSelectedVersion" @change="onSelectPlaybookVersion()">
-              <option value="">Select version</option>
-              <template x-for="version in pbVersions" :key="version">
-                <option :value="version" x-text="version"></option>
-              </template>
-            </select>
-            <div class="button-stack">
-              <button class="btn" @click="setDefaultPlaybookVersion()">Set Default</button>
-              <button class="btn danger" @click="deletePlaybookVersion()">Delete Version</button>
+            <h2>Actions</h2>
+            <div class="metric button-stack">
+              <button class="btn" @click="savePlaybook()" :disabled="pbLoading.save || !selectedPlaybook || !_aceReady">
+                <span x-show="!pbLoading.save">Save</span>
+                <span x-show="pbLoading.save">Saving...</span>
+              </button>
+              <button class="btn" @click="setDefaultPlaybookVersion()"
+                :disabled="pbLoading.setDefault || !selectedPlaybook || !pbSelectedVersion || pbSelectedVersion === pbDefaultVersion">
+                <span x-show="!pbLoading.setDefault">Set selected as default</span>
+                <span x-show="pbLoading.setDefault">Updating default...</span>
+              </button>
+              <button class="btn btn-danger" @click="deletePlaybookVersion()"
+                :disabled="pbLoading.delete || !selectedPlaybook || !pbSelectedVersion || pbSelectedVersion === pbDefaultVersion">
+                <span x-show="!pbLoading.delete">Delete selected version...</span>
+                <span x-show="pbLoading.delete">Deleting...</span>
+              </button>
             </div>
           </section>
         </aside>
         <section class="main">
-          <div class="section-head">
-            <div>
-              <h2>Playbooks</h2>
-              <p>Versioned automation content.</p>
+          <div class="main-header">
+            <div class="main-header-left">
+              <div class="main-title">Playbook editor</div>
+              <div class="main-subtitle">Load a playbook, edit YAML, then save.</div>
             </div>
-            <div class="timestamp" x-text="pbLastUpdatedUtc || '-'"></div>
+            <div class="main-actions">
+              <div class="pill">Updated (UTC): <span x-text="pbLastUpdatedUtc || '-'"></span></div>
+            </div>
           </div>
+
           <div class="notice" :class="{ danger: !pbToast.ok, success: pbToast.ok }" x-show="pbToast.message"
             x-text="pbToast.message"></div>
-          <div class="editor" x-ref="aceContainer"></div>
+
+          <div class="editor-toolbar">
+            <div class="playbook-meta-grid">
+              <div class="playbook-meta-card">
+                <label class="hint" for="playbook-name-input">Playbook</label>
+                <div class="playbook-load-row">
+                  <input id="playbook-name-input" class="input" x-model="selectedPlaybook" placeholder="PLAYBOOK_NAME" />
+                  <button class="btn" @click="loadPlaybookSelection(selectedPlaybook)" :disabled="pbLoading.load">
+                    <span x-show="!pbLoading.load">Load</span>
+                    <span x-show="pbLoading.load">Loading...</span>
+                  </button>
+                </div>
+              </div>
+              <div class="playbook-meta-card">
+                <div class="hint">Default version</div>
+                <div class="playbook-meta-value" x-text="pbDefaultVersion || '-'"></div>
+              </div>
+              <div class="playbook-meta-card">
+                <label class="hint" for="playbook-version-select">Available versions</label>
+                <select id="playbook-version-select" class="select playbook-version-select" x-model="pbSelectedVersion"
+                  @change="onSelectPlaybookVersion()" :disabled="pbLoading.load || !selectedPlaybook || !pbVersions.length">
+                  <option value="">Select version...</option>
+                  <template x-for="version in pbVersions" :key="version">
+                    <option :value="version" x-text="version"></option>
+                  </template>
+                </select>
+              </div>
+            </div>
+            <div class="hint"
+              x-text="pbSelectedVersion === pbDefaultVersion && pbSelectedVersion ? 'Selected version is the current default.' : 'Select a version to inspect, promote, or delete.'"></div>
+          </div>
+
+          <div class="editor-shell">
+            <div class="editor" x-ref="aceContainer"></div>
+          </div>
         </section>
       </main>
 
