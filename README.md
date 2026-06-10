@@ -73,10 +73,6 @@ Then open:
 - Web console: `http://localhost:8000/`
 - API docs: `http://localhost:8000/api/docs`
 
-For app webapp ports, use
-[`resources/webapp_extension_guide.md`](resources/webapp_extension_guide.md)
-as the reusable cpkit template extension guide.
-
 ## Project Status
 
 cpkit is independent and evolving. The APIs are not yet stable, and the TODO app
