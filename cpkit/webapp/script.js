@@ -1170,7 +1170,17 @@ window.app = function () {
     authClaimsWithoutCookies() {
       const claims = { ...(this.authClaims || {}) };
       delete claims.cookie;
+      delete claims.cookies;
       return claims;
+    },
+
+    authSessionCookieValue() {
+      const claims = this.authClaims && typeof this.authClaims === "object" ? this.authClaims : null;
+      if (!claims || typeof claims.cookies !== "object" || !claims.cookies) return "(No cookie data captured yet)";
+      const cookieName = String(this.authSessionCookieName || "").trim();
+      if (!cookieName) return "(No cookie data captured yet)";
+      const value = claims.cookies[cookieName];
+      return value ? String(value) : "(No cookie data captured yet)";
     },
 
     authGroupsClaimName() {

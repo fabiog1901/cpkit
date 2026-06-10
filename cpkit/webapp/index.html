@@ -785,24 +785,49 @@
 
       <div id="cpkit-extension-root"></div>
 
-      <div class="modal-backdrop" x-show="modal.userInfo.open" @click.self="closeUserInfoModal()">
-        <div class="modal">
-          <div class="modal-head">
-            <h2>User</h2>
-            <button class="icon-btn" @click="closeUserInfoModal()">x</button>
+      <div class="modal-backdrop" x-show="modal.userInfo.open" @click.self="closeUserInfoModal()"
+        @keydown.escape.window="closeUserInfoModal()">
+        <div class="modal user-session-modal" @click.outside="closeUserInfoModal()">
+          <div class="modal-header">
+            <h3 class="modal-title">User Session Details</h3>
+            <button class="btn modal-close-btn" @click="closeUserInfoModal()">CLOSE</button>
           </div>
-          <dl class="details-list">
-            <dt>Display</dt>
-            <dd x-text="userDisplayName()"></dd>
-            <dt>Roles</dt>
-            <dd x-text="authRoles().join(', ') || '-'"></dd>
-            <dt>Groups</dt>
-            <dd x-text="authGroups().join(', ') || '-'"></dd>
-          </dl>
-          <pre class="json-panel small" x-text="formatJson(authClaimsWithoutCookies())"></pre>
-          <div class="modal-actions">
-            <button class="btn" @click="refreshAuthMeSnapshot()">Refresh</button>
-            <button class="btn danger" @click="logout()">Logout</button>
+
+          <div class="modal-body user-session-body">
+            <div class="metric user-session-card">
+              <div class="user-session-pills">
+                <div class="pill">User: <span x-text="userDisplayName()"></span></div>
+                <div class="pill">Mode:
+                  <span x-text="authIsUnauthenticatedMode() ? 'unauthenticated' : 'authenticated'"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric user-session-card">
+              <div class="metric-label">CP Roles</div>
+              <div class="user-session-pills">
+                <template x-for="role in authRoles()" :key="role">
+                  <div class="pill" x-text="role"></div>
+                </template>
+                <div class="pill" x-show="authRoles().length === 0">-</div>
+              </div>
+            </div>
+
+            <div class="metric user-session-card">
+              <pre class="inspector-pre" x-text="toYaml(authClaimsWithoutCookies())"></pre>
+            </div>
+
+            <div class="metric user-session-card">
+              <div class="metric-label">Session Cookie</div>
+              <pre class="inspector-pre user-cookie-pre" x-text="authSessionCookieValue()"></pre>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn" @click="refreshAuthMeSnapshot()">REFRESH</button>
+            <button class="btn btn-danger" x-show="!authIsUnauthenticatedMode()" @click="logout()">
+              LOGOUT
+            </button>
           </div>
         </div>
       </div>

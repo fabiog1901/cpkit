@@ -1210,6 +1210,83 @@ th[data-sort].sort-desc::after,
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
 }
 
+.user-session-modal {
+  padding: 0;
+  overflow: hidden;
+}
+
+.modal-header,
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(2, 6, 23, 0.75);
+}
+
+.modal-footer {
+  justify-content: flex-end;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  border-bottom: 0;
+}
+
+.modal-title {
+  margin: 0;
+  color: #e0f2fe;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.modal-close-btn {
+  padding: 7px 12px;
+}
+
+.modal-body {
+  padding: 16px;
+}
+
+.user-session-body {
+  display: grid;
+  gap: 12px;
+  max-height: calc(90vh - 124px);
+  overflow: auto;
+}
+
+.user-session-card {
+  display: grid;
+  gap: 8px;
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.user-session-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.user-session-pills .pill {
+  margin: 0;
+}
+
+.inspector-pre {
+  margin: 0;
+  max-height: 26vh;
+  overflow: auto;
+  color: #dbeafe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.user-cookie-pre {
+  max-height: 12vh;
+}
+
 .modal-head {
   justify-content: space-between;
   margin-bottom: 16px;
