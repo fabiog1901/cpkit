@@ -1061,7 +1061,6 @@ window.app = function () {
         const payload = await this.apiFetch(`/admin/playbooks/${encodeURIComponent(playbookName)}`, { method: "GET" });
         this.selectedPlaybook = playbookName;
         this.applyPlaybookPayload(payload);
-        this.pbToast = { ok: true, message: `Loaded ${playbookName}.` };
       } catch (e) {
         this.pbToast = { ok: false, message: this.errorMessage(e, "Failed to load playbook.") };
       } finally {

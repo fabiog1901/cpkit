@@ -722,6 +722,10 @@
                 <span x-show="!pbLoading.save">Save</span>
                 <span x-show="pbLoading.save">Saving...</span>
               </button>
+              <button class="btn" @click="reloadPlaybooks()" :disabled="pbLoading.list || pbLoading.load">
+                <span x-show="!pbLoading.list">Refresh list</span>
+                <span x-show="pbLoading.list">Loading...</span>
+              </button>
               <button class="btn" @click="setDefaultPlaybookVersion()"
                 :disabled="pbLoading.setDefault || !selectedPlaybook || !pbSelectedVersion || pbSelectedVersion === pbDefaultVersion">
                 <span x-show="!pbLoading.setDefault">Set selected as default</span>
@@ -761,10 +765,6 @@
                       <option :value="playbook" x-text="playbook"></option>
                     </template>
                   </select>
-                  <button class="btn" @click="reloadPlaybooks()" :disabled="pbLoading.list || pbLoading.load">
-                    <span x-show="!pbLoading.list">Refresh list</span>
-                    <span x-show="pbLoading.list">Loading...</span>
-                  </button>
                 </div>
               </div>
               <div class="playbook-meta-card">
