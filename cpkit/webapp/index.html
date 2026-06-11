@@ -750,7 +750,7 @@
             </div>
           </div>
 
-          <div class="notice" :class="{ danger: !pbToast.ok, success: pbToast.ok }" x-show="pbToast.message"
+          <div class="notice" :class="{ danger: !pbToast.ok, success: pbToast.ok }" x-show="Boolean(pbToast.message)"
             x-text="pbToast.message"></div>
 
           <div class="editor-toolbar">

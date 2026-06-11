@@ -937,12 +937,18 @@ window.app = function () {
       }, 4000);
     },
 
+    clearPlaybookToast() {
+      this.pbToast = { message: "", ok: true };
+      this._pbToastTimer = null;
+    },
+
     showPlaybookToast(message, ok, { autoDismiss = ok } = {}) {
-      if (this._pbToastTimer) clearTimeout(this._pbToastTimer);
-      this.pbToast = { message, ok };
+      if (this._pbToastTimer) window.clearTimeout(this._pbToastTimer);
+      const toastMessage = String(message || "");
+      this.pbToast = { message: toastMessage, ok };
       if (!autoDismiss) return;
-      this._pbToastTimer = setTimeout(() => {
-        this.pbToast = { message: "", ok: true };
+      this._pbToastTimer = window.setTimeout(() => {
+        if (this.pbToast.message === toastMessage) this.clearPlaybookToast();
       }, 4000);
     },
 
