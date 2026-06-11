@@ -60,6 +60,16 @@ cpkit mounts the app webapp directory at `/app`.
 window.cpkitWebappExtension = {
   htmlPath: "/app/extension.html",
   navItems: [{ view: "app_view", label: "App" }],
+  dashboardEnsure: "ensureAppDashboard",
+  dashboardItems: [
+    {
+      label: "Open Tasks",
+      kicker: "TODO",
+      description: "Tasks that still need work.",
+      valueKey: "openTodoCount",
+      view: "app_view",
+    },
+  ],
   adminItems: [
     {
       view: "app_admin",
@@ -93,9 +103,14 @@ window.cpkitWebappExtension = {
   state: {
     rows: [],
     adminRows: [],
+    openTodoCount: 0,
     loading: { list: false },
   },
   methods: {
+    async ensureAppDashboard() {
+      const data = await this.apiFetch("/app/dashboard", { method: "GET" });
+      this.openTodoCount = data.open_todo_count || 0;
+    },
     async ensureAppView() {
       await this.refreshAppRows();
     },
@@ -125,6 +140,18 @@ pages that should appear inside cpkit's Admin surfaces. Each `adminItems`
 entry must reference a key in `routes`. Admin routes should normally use an
 `/admin/...` path and `adminOnly: true`; cpkit also treats any route referenced
 by `adminItems` as requiring `CP_ADMIN`.
+
+Use `dashboardItems` for simple application metric cards on cpkit's default
+Dashboard. cpkit keeps its built-in Jobs and Events cards first, then renders
+application dashboard cards below them. Each item can use `value`, `valueKey`,
+or `countKey`; `valueKey` and `countKey` read from the Alpine state object.
+Set `view` when clicking the card should navigate to an extension route.
+
+If the app needs richer dashboard content, such as charts, images, maps, or
+custom multi-card layouts, add a template with `id="cpkit-extension-dashboard"`
+to `extension.html`. cpkit clones that template into the Dashboard below the
+built-in cards. Use `dashboardEnsure` to name an extension method that should
+refresh application dashboard data when the Dashboard loads.
 
 ## Optional Ace Editor Helper
 
@@ -184,6 +211,21 @@ branding:
   data-app-name="Kloigos"
   data-login-subtitle="Authenticate to manage Kloigos"
 ></template>
+
+<template id="cpkit-extension-dashboard">
+  <div class="dashboard-grid">
+    <article class="dashboard-card">
+      <div class="dashboard-card-head">
+        <div>
+          <div class="dashboard-card-kicker">Application</div>
+          <h3>Custom dashboard object</h3>
+        </div>
+        <div class="dashboard-stat" x-text="openTodoCount"></div>
+      </div>
+      <p>Apps can place charts, images, or richer dashboard objects here.</p>
+    </article>
+  </div>
+</template>
 
 <main class="layout" x-show="view === 'app_view'">
   <aside class="sidebar">

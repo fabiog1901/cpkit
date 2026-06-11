@@ -5,6 +5,8 @@ window.app = function () {
     apiBase: "/api",
     extensionNavItems: Array.isArray(extension.navItems) ? extension.navItems : [],
     extensionAdminItems: Array.isArray(extension.adminItems) ? extension.adminItems : [],
+    extensionDashboardItems: Array.isArray(extension.dashboardItems) ? extension.dashboardItems : [],
+    extensionDashboardTemplateLoaded: false,
     brand: {
       logoText: "ck",
       appName: "cpkit",
@@ -97,6 +99,7 @@ window.app = function () {
       await this.loadExtensionHtml();
       this.applyExtensionHooks();
       this.applyExtensionBrand();
+      this.applyExtensionDashboardTemplate();
       this.restoreLocalState();
       await this.checkAuth();
       if (!this.isAuthenticated) return;
@@ -180,6 +183,18 @@ window.app = function () {
         ...Object.fromEntries(Object.entries(htmlBrand).filter(([, value]) => value)),
       };
       document.title = this.brand.appName || "cpkit";
+    },
+
+    applyExtensionDashboardTemplate() {
+      const template = document.getElementById("cpkit-extension-dashboard");
+      const slot = document.getElementById("cpkit-dashboard-extension-slot");
+      this.extensionDashboardTemplateLoaded = Boolean(template);
+      if (!template || !slot) return;
+      slot.innerHTML = "";
+      slot.appendChild(template.content.cloneNode(true));
+      if (window.Alpine && typeof window.Alpine.initTree === "function") {
+        window.Alpine.initTree(slot);
+      }
     },
 
     isPlainObject(value) {
@@ -463,9 +478,46 @@ window.app = function () {
       return this.extensionAdminItems.some((item) => item?.view === viewName);
     },
 
+    normalizedExtensionDashboardItems() {
+      return this.extensionDashboardItems
+        .filter((item) => item && (item.label || item.valueKey || item.countKey || item.value !== undefined))
+        .map((item) => ({
+          ...item,
+          label: item.label || item.valueKey || item.countKey || "Metric",
+          kicker: item.kicker || "Application",
+          description: item.description || "",
+          valueKey: item.valueKey || "",
+          countKey: item.countKey || "",
+          view: item.view || "",
+        }));
+    },
+
+    hasExtensionDashboardContent() {
+      return this.normalizedExtensionDashboardItems().length > 0 || this.extensionDashboardTemplateLoaded;
+    },
+
+    dashboardItemValue(item) {
+      if (item?.value !== undefined) return item.value;
+      const key = item?.valueKey || item?.countKey || "";
+      if (!key) return "";
+      const value = this[key];
+      if (Array.isArray(value)) return value.length;
+      if (value && typeof value === "object") return Object.keys(value).length;
+      if (value === null || value === undefined) return "";
+      return value;
+    },
+
+    openDashboardItem(item) {
+      if (item?.view) this.setView(item.view);
+    },
+
     async refreshDashboardOverview({ onlyIfEmpty = false } = {}) {
       if (!onlyIfEmpty || this.jobStats.total === 0) await this.refreshJobStats();
       if (!onlyIfEmpty || this.events.length === 0) await this.refreshEvents({ limit: 20 });
+      const dashboardEnsure = extension.dashboardEnsure;
+      if (dashboardEnsure && typeof this[dashboardEnsure] === "function") {
+        await this[dashboardEnsure]({ onlyIfEmpty });
+      }
     },
 
     async refreshJobs() {

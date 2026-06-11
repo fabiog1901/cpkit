@@ -153,6 +153,30 @@
             </button>
           </div>
 
+          <section class="dashboard-extension-section" x-show="hasExtensionDashboardContent()">
+            <div class="dashboard-overview-bar">
+              <div class="dashboard-card-kicker">Application Dashboard</div>
+            </div>
+            <div class="dashboard-grid dashboard-extension-grid"
+              x-show="normalizedExtensionDashboardItems().length > 0">
+              <template x-for="item in normalizedExtensionDashboardItems()" :key="item.view || item.label">
+                <button type="button" class="dashboard-card dashboard-card-button"
+                  :class="{ 'dashboard-card-static': !item.view }" @click="openDashboardItem(item)">
+                  <div class="dashboard-card-head">
+                    <div>
+                      <div class="dashboard-card-kicker" x-text="item.kicker"></div>
+                      <h3 x-text="item.label"></h3>
+                    </div>
+                    <div class="dashboard-stat" x-show="dashboardItemValue(item) !== ''"
+                      x-text="dashboardItemValue(item)"></div>
+                  </div>
+                  <p x-show="item.description" x-text="item.description"></p>
+                </button>
+              </template>
+            </div>
+            <div id="cpkit-dashboard-extension-slot" class="dashboard-extension-slot"></div>
+          </section>
+
           <div class="dashboard-grid dashboard-admin-grid" x-show="canViewAdmin()">
             <template x-for="item in adminItems()" :key="item.view">
               <button type="button" class="dashboard-card dashboard-card-button" @click="setView(item.view)">

@@ -405,6 +405,27 @@ select {
   border-color: rgba(45, 212, 191, 0.55);
 }
 
+.dashboard-card-static {
+  cursor: default;
+}
+
+.dashboard-card-static:hover {
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.dashboard-extension-section {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-extension-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-extension-slot:empty {
+  display: none;
+}
+
 .admin-card {
   min-height: 148px;
   gap: 8px;
