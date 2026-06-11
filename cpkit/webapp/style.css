@@ -405,6 +405,80 @@ select {
   border-color: rgba(45, 212, 191, 0.55);
 }
 
+.dashboard-table-card {
+  align-content: start;
+  min-height: 430px;
+}
+
+.dashboard-link-button {
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.dashboard-link-button:hover {
+  text-decoration: underline;
+}
+
+.dashboard-mini-table-wrap {
+  max-height: 232px;
+  overflow: auto;
+  border: 1px solid rgba(120, 53, 15, 0.34);
+  border-radius: 10px;
+  background: rgba(17, 12, 8, 0.72);
+}
+
+.dashboard-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+.dashboard-mini-table th,
+.dashboard-mini-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(120, 53, 15, 0.2);
+  text-align: left;
+  vertical-align: middle;
+  font-size: 12px;
+}
+
+.dashboard-mini-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(25, 19, 14, 0.98);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dashboard-mini-table tr:nth-child(even) td {
+  background: rgba(20, 16, 13, 0.46);
+}
+
+.dashboard-mini-table tr:hover td {
+  background: rgba(120, 53, 15, 0.22);
+}
+
+.dashboard-mini-table .event-action-pill {
+  min-width: 0;
+  max-width: 180px;
+  font-size: 11px;
+}
+
+.dashboard-mini-table .status,
+.dashboard-mini-table .service-pill,
+.dashboard-mini-table .ip-pill {
+  font-size: 11px;
+}
+
 .dashboard-card-static {
   cursor: default;
 }

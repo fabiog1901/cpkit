@@ -512,8 +512,9 @@ window.app = function () {
     },
 
     async refreshDashboardOverview({ onlyIfEmpty = false } = {}) {
-      if (!onlyIfEmpty || this.jobStats.total === 0) await this.refreshJobStats();
-      if (!onlyIfEmpty || this.events.length === 0) await this.refreshEvents({ limit: 20 });
+      if (!onlyIfEmpty || this.jobs.length === 0) await this.refreshJobs();
+      else if (this.jobStats.total === 0) await this.refreshJobStats();
+      if (!onlyIfEmpty || this.events.length === 0) await this.refreshEvents({ limit: 10 });
       const dashboardEnsure = extension.dashboardEnsure;
       if (dashboardEnsure && typeof this[dashboardEnsure] === "function") {
         await this[dashboardEnsure]({ onlyIfEmpty });
@@ -644,6 +645,13 @@ window.app = function () {
 
     onJobsFilterInput() {
       this.applyJobsFilterSort();
+    },
+
+    recentJobs(limit) {
+      return this.jobs
+        .slice()
+        .sort((a, b) => this.compareValues(b?.updated_at || b?.created_at, a?.updated_at || a?.created_at))
+        .slice(0, limit);
     },
 
     jobStatusClass(status) {

@@ -102,15 +102,19 @@
 
         <section class="main dashboard-main">
           <div class="dashboard-grid">
-            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('jobs')">
+            <article class="dashboard-card dashboard-table-card">
               <div class="dashboard-card-head">
                 <div>
                   <div class="dashboard-card-kicker">Orchestration</div>
                   <h3>Jobs</h3>
                 </div>
-                <div class="dashboard-stat" x-text="jobStats.total"></div>
+                <button type="button" class="dashboard-link-button" @click="setView('jobs')">Open Jobs</button>
               </div>
               <div class="dashboard-kv-grid">
+                <div class="dashboard-kv">
+                  <div class="dashboard-kv-label">Total</div>
+                  <div class="dashboard-kv-value" x-text="jobStats.total"></div>
+                </div>
                 <div class="dashboard-kv">
                   <div class="dashboard-kv-label">Running</div>
                   <div class="dashboard-kv-value" x-text="jobStats.running"></div>
@@ -123,34 +127,81 @@
                   <div class="dashboard-kv-label">Failed</div>
                   <div class="dashboard-kv-value" x-text="jobStats.failed"></div>
                 </div>
-                <div class="dashboard-kv">
-                  <div class="dashboard-kv-label">Last sync</div>
-                  <div class="dashboard-kv-value small" x-text="jobsLastUpdatedUtc || '-'"></div>
-                </div>
               </div>
-            </button>
+              <div class="dashboard-mini-table-wrap">
+                <table class="dashboard-mini-table">
+                  <thead>
+                    <tr>
+                      <th>Job</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="job in recentJobs(10)" :key="`dashboard-job-${job.job_id}`">
+                      <tr>
+                        <td>
+                          <a href="#" class="dashboard-link" @click.prevent="openJob(job.job_id)">
+                            <span class="ip-pill clickable" x-text="job.job_id"></span>
+                          </a>
+                        </td>
+                        <td><span class="service-pill" x-text="job.job_type || '-'"></span></td>
+                        <td>
+                          <span class="status" :class="jobStatusClass(job.status)">
+                            <span class="status-dot"></span>
+                            <span x-text="String(job.status || 'unknown').toUpperCase()"></span>
+                          </span>
+                        </td>
+                        <td x-text="relativeTimeFromNow(job.updated_at || job.created_at)"></td>
+                      </tr>
+                    </template>
+                    <tr x-show="jobs.length === 0">
+                      <td colspan="4" class="empty-cell">No recent jobs.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
 
-            <button type="button" class="dashboard-card dashboard-card-button" @click="setView('events')">
+            <article class="dashboard-card dashboard-table-card">
               <div class="dashboard-card-head">
                 <div>
                   <div class="dashboard-card-kicker">Audit</div>
                   <h3>Events</h3>
                 </div>
-                <div class="dashboard-stat" x-text="events.length"></div>
+                <button type="button" class="dashboard-link-button" @click="setView('events')">Open Events</button>
               </div>
-              <div class="dashboard-feed-list compact">
-                <template x-for="event in recentEvents(4)" :key="`${event.ts}-${event.user_id}-${event.action}`">
-                  <div class="dashboard-feed-item">
-                    <div class="dashboard-feed-title" x-text="event.action || '-'"></div>
-                    <div class="dashboard-feed-meta">
-                      <span x-text="event.user_id || 'unknown user'"></span>
-                      <span x-text="relativeTimeFromNow(event.ts)"></span>
-                    </div>
-                  </div>
-                </template>
-                <div class="empty-mini" x-show="events.length === 0">No recent events.</div>
+              <div class="dashboard-mini-table-wrap">
+                <table class="dashboard-mini-table">
+                  <thead>
+                    <tr>
+                      <th>When</th>
+                      <th>User</th>
+                      <th>Action</th>
+                      <th>Context</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="event in recentEvents(10)"
+                      :key="`dashboard-event-${event.ts}-${event.user_id}-${event.action}-${event.request_id || ''}`">
+                      <tr>
+                        <td x-text="relativeTimeFromNow(event.ts)"></td>
+                        <td x-text="event.user_id || '-'"></td>
+                        <td>
+                          <span class="service-pill event-action-pill" :style="actionPillStyle(event.action)"
+                            x-text="event.action || '-'"></span>
+                        </td>
+                        <td x-text="event.request_id || '-'"></td>
+                      </tr>
+                    </template>
+                    <tr x-show="events.length === 0">
+                      <td colspan="4" class="empty-cell">No recent events.</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-            </button>
+            </article>
           </div>
 
           <section class="dashboard-extension-section" x-show="hasExtensionDashboardContent()">
@@ -177,15 +228,6 @@
             <div id="cpkit-dashboard-extension-slot" class="dashboard-extension-slot"></div>
           </section>
 
-          <div class="dashboard-grid dashboard-admin-grid" x-show="canViewAdmin()">
-            <template x-for="item in adminItems()" :key="item.view">
-              <button type="button" class="dashboard-card dashboard-card-button" @click="setView(item.view)">
-                <div class="dashboard-card-kicker" x-text="item.kicker"></div>
-                <h3 x-text="item.label"></h3>
-                <p x-text="item.description"></p>
-              </button>
-            </template>
-          </div>
         </section>
       </main>
 
