@@ -406,8 +406,14 @@ select {
 }
 
 .dashboard-table-card {
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   min-height: 430px;
+}
+
+.dashboard-table-card > .dashboard-mini-table-wrap {
+  flex: 1 1 auto;
+  min-height: 232px;
 }
 
 .dashboard-link-button {
@@ -426,6 +432,7 @@ select {
 }
 
 .dashboard-mini-table-wrap {
+  height: 100%;
   max-height: 232px;
   overflow: auto;
   border: 1px solid rgba(120, 53, 15, 0.34);
