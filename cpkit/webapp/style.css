@@ -804,10 +804,10 @@ select {
   min-height: 0;
   display: flex;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.4);
+  border: 1px solid rgba(120, 53, 15, 0.5);
   border-radius: 11px;
-  background: rgba(15, 23, 42, 0.95);
-  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.9);
+  background: rgba(20, 16, 13, 0.95);
+  box-shadow: 0 26px 60px rgba(10, 7, 4, 0.75);
 }
 
 .table-scroll {
@@ -817,10 +817,10 @@ select {
 }
 
 .jobs-sidebar .metric {
-  border-color: rgba(148, 163, 184, 0.35);
+  border-color: rgba(251, 191, 36, 0.24);
   background:
-    radial-gradient(circle at 10% 0, rgba(148, 163, 184, 0.25) 0, transparent 55%),
-    radial-gradient(circle at 100% 120%, rgba(37, 99, 235, 0.4) 0, transparent 55%);
+    radial-gradient(circle at 10% 0, rgba(251, 191, 36, 0.16) 0, transparent 55%),
+    radial-gradient(circle at 100% 120%, rgba(120, 53, 15, 0.44) 0, transparent 55%);
 }
 
 .data-table {
@@ -840,7 +840,7 @@ select {
 .data-table th,
 .data-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  border-bottom: 1px solid rgba(120, 53, 15, 0.24);
   text-align: left;
   vertical-align: top;
 }
@@ -849,7 +849,7 @@ select {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: rgba(15, 23, 42, 0.96);
+  background: rgba(25, 19, 14, 0.98);
   color: var(--muted);
   font-size: 12px;
   text-transform: uppercase;
@@ -859,15 +859,15 @@ select {
 }
 
 .data-table tbody tr:nth-child(even) {
-  background: rgba(15, 23, 42, 0.42);
+  background: rgba(20, 16, 13, 0.48);
 }
 
 .data-table tbody tr:nth-child(odd) {
-  background: rgba(15, 23, 42, 0.72);
+  background: rgba(28, 21, 15, 0.72);
 }
 
 .data-table tbody tr:hover {
-  background: rgba(30, 64, 175, 0.32);
+  background: rgba(120, 53, 15, 0.34);
 }
 
 .data-table th[data-sort]::after {
@@ -988,8 +988,8 @@ th[data-sort].sort-desc::after,
 
 .ip-pill {
   padding: 3px 9px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(184, 171, 157, 0.36);
+  background: rgba(17, 12, 8, 0.88);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
@@ -999,18 +999,18 @@ th[data-sort].sort-desc::after,
 }
 
 .ip-pill.clickable:hover {
-  border-color: rgba(56, 189, 248, 0.9);
-  background: rgba(30, 64, 175, 0.45);
-  color: #e0f2fe;
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
+  border-color: rgba(251, 191, 36, 0.72);
+  background: rgba(120, 53, 15, 0.42);
+  color: #fde68a;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.22);
   text-decoration: underline;
 }
 
 .service-pill {
   gap: 6px;
   padding: 4px 10px;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(184, 171, 157, 0.34);
+  background: rgba(17, 12, 8, 0.86);
 }
 
 .status {
