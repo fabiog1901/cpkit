@@ -1139,6 +1139,18 @@ th[data-sort].sort-desc::after,
   overflow: hidden;
 }
 
+.editor-textarea {
+  border: 0;
+  resize: none;
+  padding: 14px;
+  outline: none;
+  color: #f5efe6;
+  background: transparent;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .editor-shell {
   flex: 1 1 auto;
   min-height: 0;

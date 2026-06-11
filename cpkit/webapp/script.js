@@ -76,6 +76,7 @@ window.app = function () {
     pbDefaultVersion: "",
     pbSelectedVersion: "",
     pbVersions: [],
+    pbEditorText: "",
     _ace: null,
     _aceReady: false,
 
@@ -934,16 +935,73 @@ window.app = function () {
       }, 4000);
     },
 
+    isAceAvailable() {
+      return Boolean(typeof window !== "undefined" && window.ace);
+    },
+
+    createAceEditor(elementOrRef, {
+      mode = "text",
+      theme = "cobalt",
+      value = "",
+      readOnly = false,
+      wrap = true,
+      minLines = null,
+      maxLines = null,
+      onChange = null,
+    } = {}) {
+      const element = typeof elementOrRef === "string" ? this.$refs[elementOrRef] : elementOrRef;
+      if (!this.isAceAvailable() || !element) return null;
+
+      const editor = window.ace.edit(element);
+      editor.setTheme(String(theme).startsWith("ace/theme/") ? theme : `ace/theme/${theme}`);
+      editor.session.setMode(String(mode).startsWith("ace/mode/") ? mode : `ace/mode/${mode}`);
+      editor.session.setUseWorker(false);
+      editor.setReadOnly(Boolean(readOnly));
+      editor.setOptions({
+        showPrintMargin: false,
+        useSoftTabs: true,
+        tabSize: 2,
+        wrap: Boolean(wrap),
+        ...(minLines !== null ? { minLines } : {}),
+        ...(maxLines !== null ? { maxLines } : {}),
+      });
+      this.setAceValue(editor, value);
+      if (typeof onChange === "function") {
+        editor.session.on("change", () => onChange(editor.getValue(), editor));
+      }
+      return editor;
+    },
+
+    setAceValue(editor, value) {
+      if (!editor || typeof editor.setValue !== "function") return;
+      const next = String(value ?? "");
+      if (typeof editor.getValue === "function" && editor.getValue() === next) return;
+      editor.setValue(next, -1);
+    },
+
+    destroyAceEditor(editor) {
+      if (!editor) return;
+      if (typeof editor.destroy === "function") editor.destroy();
+      if (editor.container && typeof editor.container.removeAttribute === "function") {
+        editor.container.removeAttribute("ace_editor");
+      }
+    },
+
     ensureAce() {
       if (this._aceReady) return;
-      if (!window.ace || !this.$refs.aceContainer) {
-        this.pbToast = { ok: false, message: "Editor is not available." };
+      this._ace = this.createAceEditor(this.$refs.aceContainer, {
+        mode: "yaml",
+        theme: "cobalt",
+        value: this.pbEditorText,
+        wrap: true,
+        onChange: (value) => {
+          this.pbEditorText = value;
+        },
+      });
+      if (!this._ace) {
+        this.pbToast = { ok: false, message: "Ace editor is not available; using plain text editor." };
         return;
       }
-      this._ace = window.ace.edit(this.$refs.aceContainer);
-      this._ace.setTheme("ace/theme/cobalt");
-      this._ace.session.setMode("ace/mode/yaml");
-      this._ace.setOptions({ showPrintMargin: false, useSoftTabs: true, tabSize: 2, wrap: true });
       this._aceReady = true;
       this.pbToast = { ok: true, message: "Editor ready." };
     },
@@ -953,7 +1011,8 @@ window.app = function () {
       this.pbVersions = Array.isArray(payload?.available_versions) ? payload.available_versions.map(String) : [];
       this.pbDefaultVersion = payload?.default_version ? String(payload.default_version) : "";
       this.pbSelectedVersion = payload?.playbook_version ? String(payload.playbook_version) : this.pbDefaultVersion;
-      if (this._ace) this._ace.setValue(String(content ?? ""), -1);
+      this.pbEditorText = String(content ?? "");
+      this.setAceValue(this._ace, this.pbEditorText);
       this.pbLastUpdatedUtc = this.utcNowString();
     },
 
@@ -1006,7 +1065,7 @@ window.app = function () {
       try {
         const payload = await this.apiFetch(`/admin/playbooks/${encodeURIComponent(name)}`, {
           method: "POST",
-          body: { content: this._ace.getValue() },
+          body: { content: this._aceReady && this._ace ? this._ace.getValue() : this.pbEditorText },
         });
         this.applyPlaybookPayload(payload);
         this.pbToast = { ok: true, message: `Saved ${name}.` };

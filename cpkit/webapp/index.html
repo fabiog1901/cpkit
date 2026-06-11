@@ -7,11 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/app/extension.css" />
-  <script defer src="/app/extension.js"></script>
-  <script defer src="/script.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/mode-yaml.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/mode-sql.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/theme-cobalt.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ext-searchbox.js"></script>
+  <script defer src="/app/extension.js"></script>
+  <script defer src="/script.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
@@ -716,7 +718,7 @@
           <section>
             <h2>Actions</h2>
             <div class="metric button-stack">
-              <button class="btn" @click="savePlaybook()" :disabled="pbLoading.save || !selectedPlaybook || !_aceReady">
+              <button class="btn" @click="savePlaybook()" :disabled="pbLoading.save || !selectedPlaybook">
                 <span x-show="!pbLoading.save">Save</span>
                 <span x-show="pbLoading.save">Saving...</span>
               </button>
@@ -779,7 +781,9 @@
           </div>
 
           <div class="editor-shell">
-            <div class="editor" x-ref="aceContainer"></div>
+            <div class="editor" x-ref="aceContainer" x-show="isAceAvailable()"></div>
+            <textarea class="editor editor-textarea" x-show="!isAceAvailable()" x-model="pbEditorText"
+              spellcheck="false"></textarea>
           </div>
         </section>
       </main>

@@ -126,6 +126,52 @@ entry must reference a key in `routes`. Admin routes should normally use an
 `/admin/...` path and `adminOnly: true`; cpkit also treats any route referenced
 by `adminItems` as requiring `CP_ADMIN`.
 
+## Optional Ace Editor Helper
+
+The cpkit template loads Ace once from the shell HTML before `/script.js` runs.
+Extensions should not add their own Ace script tags. If an extension needs a
+code editor, call the shell helper methods from extension methods:
+
+```javascript
+methods: {
+  ensureSqlEditor() {
+    if (this.sqlEditor) return;
+    this.sqlEditor = this.createAceEditor(this.$refs.sqlEditor, {
+      mode: "sql",
+      theme: "cobalt",
+      value: this.sqlText,
+      readOnly: false,
+      wrap: true,
+      minLines: 8,
+      maxLines: 18,
+      onChange: (value) => {
+        this.sqlText = value;
+      },
+    });
+  },
+  syncSqlEditor(value) {
+    this.sqlText = String(value || "");
+    this.setAceValue(this.sqlEditor, this.sqlText);
+  },
+  destroySqlEditor() {
+    this.destroyAceEditor(this.sqlEditor);
+    this.sqlEditor = null;
+  },
+}
+```
+
+Available helpers:
+
+- `isAceAvailable()` returns `true` when Ace is loaded.
+- `createAceEditor(elementOrRef, options)` returns an Ace editor or `null`.
+- `setAceValue(editor, value)` safely updates an existing Ace editor.
+- `destroyAceEditor(editor)` tears down an editor without removing the caller's
+  DOM element.
+
+Keep Ace optional. `createAceEditor(...)` returns `null` when Ace or the target
+element is unavailable, so extension markup should keep a textarea or plain text
+fallback for important content.
+
 ## Extension HTML Contract
 
 `extension.html` contains app-specific Alpine markup. It can also declare app
