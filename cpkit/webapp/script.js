@@ -541,34 +541,33 @@ window.app = function () {
     },
 
     jobsRowText(job) {
-      return [
-        ...[0, 1, 2, 3, 4, 5].map((idx) => String(this.jobsCellText(job, idx))),
-        this.jobsDescriptionText(job),
-      ].join(" ").toLowerCase();
+      return this.tableRowText(job, [0, 1, 2, 3, 4, 5], this.jobsCellText, [this.jobsDescriptionText(job)]);
     },
 
     sortJobs(index) {
-      if (this.jobsSortIndex === index) this.jobsSortDir = this.jobsSortDir === "asc" ? "desc" : "asc";
-      else {
-        this.jobsSortIndex = index;
-        this.jobsSortDir = index === 0 || index >= 4 ? "desc" : "asc";
-      }
-      this.applyJobsFilterSort();
+      this.toggleTableSort(index, {
+        sortIndexKey: "jobsSortIndex",
+        sortDirKey: "jobsSortDir",
+        defaultDirForIndex: (idx) => (idx === 0 || idx >= 4 ? "desc" : "asc"),
+        apply: () => this.applyJobsFilterSort(),
+      });
     },
 
     jobsSortClass(index) {
-      if (this.jobsSortIndex !== index) return "";
-      return this.jobsSortDir === "asc" ? "sort-asc" : "sort-desc";
+      return this.tableSortClass(index, "jobsSortIndex", "jobsSortDir");
     },
 
     applyJobsFilterSort() {
-      localStorage.setItem("cpkit_jobs_filter", this.jobsFilterQuery || "");
-      const q = String(this.jobsFilterQuery || "").toLowerCase().trim();
-      let rows = this.jobs.slice();
-      if (q) rows = rows.filter((job) => this.jobsRowText(job).includes(q));
-      rows.sort((a, b) => this.compareValues(this.jobsCellText(a, this.jobsSortIndex), this.jobsCellText(b, this.jobsSortIndex)));
-      if (this.jobsSortDir === "desc") rows.reverse();
-      this.jobsVisibleRows = rows;
+      this.applyTableFilterSort({
+        sourceKey: "jobs",
+        visibleKey: "jobsVisibleRows",
+        filterKey: "jobsFilterQuery",
+        storageKey: "cpkit_jobs_filter",
+        sortIndexKey: "jobsSortIndex",
+        sortDirKey: "jobsSortDir",
+        cellText: this.jobsCellText,
+        rowText: this.jobsRowText,
+      });
     },
 
     jobsTitle() {
@@ -627,35 +626,68 @@ window.app = function () {
     },
 
     eventsRowText(event) {
-      return [0, 1, 2, 3, 4].map((idx) => String(this.eventsCellText(event, idx))).join(" ").toLowerCase();
+      return this.tableRowText(event, [0, 1, 2, 3, 4], this.eventsCellText);
     },
 
     sortEvents(index) {
-      if (this.eventsSortIndex === index) this.eventsSortDir = this.eventsSortDir === "asc" ? "desc" : "asc";
-      else {
-        this.eventsSortIndex = index;
-        this.eventsSortDir = index === 0 ? "desc" : "asc";
-      }
-      this.applyEventsFilterSort();
+      this.toggleTableSort(index, {
+        sortIndexKey: "eventsSortIndex",
+        sortDirKey: "eventsSortDir",
+        defaultDirForIndex: (idx) => (idx === 0 ? "desc" : "asc"),
+        apply: () => this.applyEventsFilterSort(),
+      });
     },
 
     eventsSortClass(index) {
-      if (this.eventsSortIndex !== index) return "";
-      return this.eventsSortDir === "asc" ? "sort-asc" : "sort-desc";
+      return this.tableSortClass(index, "eventsSortIndex", "eventsSortDir");
     },
 
     applyEventsFilterSort() {
-      localStorage.setItem("cpkit_events_filter", this.eventsFilterQuery || "");
-      const q = String(this.eventsFilterQuery || "").toLowerCase().trim();
-      let rows = this.events.slice();
-      if (q) rows = rows.filter((event) => this.eventsRowText(event).includes(q));
-      rows.sort((a, b) => this.compareValues(this.eventsCellText(a, this.eventsSortIndex), this.eventsCellText(b, this.eventsSortIndex)));
-      if (this.eventsSortDir === "desc") rows.reverse();
-      this.eventsVisibleRows = rows;
+      this.applyTableFilterSort({
+        sourceKey: "events",
+        visibleKey: "eventsVisibleRows",
+        filterKey: "eventsFilterQuery",
+        storageKey: "cpkit_events_filter",
+        sortIndexKey: "eventsSortIndex",
+        sortDirKey: "eventsSortDir",
+        cellText: this.eventsCellText,
+        rowText: this.eventsRowText,
+      });
     },
 
     eventsDetailsText(event) {
       return this.toYaml(event?.details ?? null);
+    },
+
+    actionPillStyle(action) {
+      const name = String(action || "").trim().toUpperCase();
+      const palette = [
+        { background: "rgba(30, 64, 175, 0.92)", borderColor: "rgba(147, 197, 253, 0.55)", color: "#eff6ff" },
+        { background: "rgba(154, 52, 18, 0.92)", borderColor: "rgba(253, 186, 116, 0.55)", color: "#fff7ed" },
+        { background: "rgba(6, 95, 70, 0.92)", borderColor: "rgba(110, 231, 183, 0.5)", color: "#ecfdf5" },
+        { background: "rgba(91, 33, 182, 0.92)", borderColor: "rgba(196, 181, 253, 0.5)", color: "#f5f3ff" },
+        { background: "rgba(190, 24, 93, 0.92)", borderColor: "rgba(251, 182, 206, 0.5)", color: "#fff1f2" },
+        { background: "rgba(15, 23, 42, 0.96)", borderColor: "rgba(148, 163, 184, 0.45)", color: "#e5e7eb" },
+        { background: "rgba(20, 83, 45, 0.92)", borderColor: "rgba(134, 239, 172, 0.45)", color: "#f0fdf4" },
+        { background: "rgba(127, 29, 29, 0.92)", borderColor: "rgba(252, 165, 165, 0.45)", color: "#fef2f2" },
+      ];
+      const preferred = [
+        { match: ["LOGIN", "_LOGIN"], style: palette[0] },
+        { match: ["LOGOUT", "_LOGOUT"], style: palette[5] },
+        { match: ["ALLOCATE", "ALLOCATION"], style: palette[1] },
+        { match: ["DEALLOCATE", "DEALLOCATION"], style: palette[3] },
+        { match: ["INIT", "CREATE"], style: palette[2] },
+        { match: ["DECOMM", "DELETE", "REMOVE"], style: palette[7] },
+        { match: ["UPDATE", "PATCH"], style: palette[4] },
+      ];
+      for (const entry of preferred) {
+        if (entry.match.some((token) => name.includes(token))) return entry.style;
+      }
+      let hash = 0;
+      for (let i = 0; i < name.length; i += 1) {
+        hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+      }
+      return palette[hash % palette.length];
     },
 
     onEventsFilterInput() {
@@ -681,13 +713,16 @@ window.app = function () {
     },
 
     applyApiKeysFilterSort() {
-      localStorage.setItem("cpkit_api_keys_filter", this.apiKeysFilterQuery || "");
-      const q = String(this.apiKeysFilterQuery || "").toLowerCase().trim();
-      let rows = this.apiKeys.slice();
-      if (q) rows = rows.filter((row) => this.apiKeysRowText(row).includes(q));
-      rows.sort((a, b) => this.compareValues(this.apiKeysCellText(a, this.apiKeysSortIndex), this.apiKeysCellText(b, this.apiKeysSortIndex)));
-      if (this.apiKeysSortDir === "desc") rows.reverse();
-      this.apiKeysVisibleRows = rows;
+      this.applyTableFilterSort({
+        sourceKey: "apiKeys",
+        visibleKey: "apiKeysVisibleRows",
+        filterKey: "apiKeysFilterQuery",
+        storageKey: "cpkit_api_keys_filter",
+        sortIndexKey: "apiKeysSortIndex",
+        sortDirKey: "apiKeysSortDir",
+        cellText: this.apiKeysCellText,
+        rowText: this.apiKeysRowText,
+      });
     },
 
     apiKeysCellText(row, index) {
@@ -700,21 +735,20 @@ window.app = function () {
     },
 
     apiKeysRowText(row) {
-      return [0, 1, 2, 3].map((idx) => String(this.apiKeysCellText(row, idx))).join(" ").toLowerCase();
+      return this.tableRowText(row, [0, 1, 2, 3], this.apiKeysCellText);
     },
 
     sortApiKeys(index) {
-      if (this.apiKeysSortIndex === index) this.apiKeysSortDir = this.apiKeysSortDir === "asc" ? "desc" : "asc";
-      else {
-        this.apiKeysSortIndex = index;
-        this.apiKeysSortDir = index === 2 ? "desc" : "asc";
-      }
-      this.applyApiKeysFilterSort();
+      this.toggleTableSort(index, {
+        sortIndexKey: "apiKeysSortIndex",
+        sortDirKey: "apiKeysSortDir",
+        defaultDirForIndex: (idx) => (idx === 2 ? "desc" : "asc"),
+        apply: () => this.applyApiKeysFilterSort(),
+      });
     },
 
     apiKeysSortClass(index) {
-      if (this.apiKeysSortIndex !== index) return "";
-      return this.apiKeysSortDir === "asc" ? "sort-asc" : "sort-desc";
+      return this.tableSortClass(index, "apiKeysSortIndex", "apiKeysSortDir");
     },
 
     openApiKeyCreateModal() {
@@ -815,16 +849,17 @@ window.app = function () {
     },
 
     applySettingsFilterSort() {
-      localStorage.setItem("cpkit_settings_filter", this.settingsFilterQuery || "");
-      const q = String(this.settingsFilterQuery || "").toLowerCase().trim();
-      let rows = this.settings.slice();
-      if (this.settingsCategoryTab !== "all") {
-        rows = rows.filter((row) => String(row.category || "") === this.settingsCategoryTab);
-      }
-      if (q) rows = rows.filter((row) => this.settingsRowText(row).includes(q));
-      rows.sort((a, b) => this.compareValues(this.settingsCellText(a, this.settingsSortIndex), this.settingsCellText(b, this.settingsSortIndex)));
-      if (this.settingsSortDir === "desc") rows.reverse();
-      this.settingsVisibleRows = rows;
+      this.applyTableFilterSort({
+        sourceKey: "settings",
+        visibleKey: "settingsVisibleRows",
+        filterKey: "settingsFilterQuery",
+        storageKey: "cpkit_settings_filter",
+        sortIndexKey: "settingsSortIndex",
+        sortDirKey: "settingsSortDir",
+        cellText: this.settingsCellText,
+        rowText: this.settingsRowText,
+        prefilter: (row) => this.settingsCategoryTab === "all" || String(row.category || "") === this.settingsCategoryTab,
+      });
     },
 
     settingsCellText(row, index) {
@@ -850,17 +885,16 @@ window.app = function () {
     },
 
     sortSettings(index) {
-      if (this.settingsSortIndex === index) this.settingsSortDir = this.settingsSortDir === "asc" ? "desc" : "asc";
-      else {
-        this.settingsSortIndex = index;
-        this.settingsSortDir = index === 4 ? "desc" : "asc";
-      }
-      this.applySettingsFilterSort();
+      this.toggleTableSort(index, {
+        sortIndexKey: "settingsSortIndex",
+        sortDirKey: "settingsSortDir",
+        defaultDirForIndex: (idx) => (idx === 4 ? "desc" : "asc"),
+        apply: () => this.applySettingsFilterSort(),
+      });
     },
 
     settingsSortClass(index) {
-      if (this.settingsSortIndex !== index) return "";
-      return this.settingsSortDir === "asc" ? "sort-asc" : "sort-desc";
+      return this.tableSortClass(index, "settingsSortIndex", "settingsSortDir");
     },
 
     async saveSetting(key) {
@@ -1066,6 +1100,52 @@ window.app = function () {
       const num = Number(value);
       if (!Number.isNaN(num) && String(value).trim() !== "") return num;
       return String(value).toLowerCase();
+    },
+
+    tableRowText(row, indexes, cellText, extraValues = []) {
+      return [
+        ...indexes.map((idx) => cellText.call(this, row, idx)),
+        ...extraValues,
+      ].map((value) => String(value ?? "")).join(" ").toLowerCase();
+    },
+
+    tableSortClass(index, sortIndexKey, sortDirKey) {
+      if (this[sortIndexKey] !== index) return "";
+      return this[sortDirKey] === "asc" ? "sort-asc" : "sort-desc";
+    },
+
+    toggleTableSort(index, { sortIndexKey, sortDirKey, defaultDirForIndex, apply }) {
+      if (this[sortIndexKey] === index) {
+        this[sortDirKey] = this[sortDirKey] === "asc" ? "desc" : "asc";
+      } else {
+        this[sortIndexKey] = index;
+        this[sortDirKey] = defaultDirForIndex(index);
+      }
+      apply();
+    },
+
+    applyTableFilterSort({
+      sourceKey,
+      visibleKey,
+      filterKey,
+      storageKey,
+      sortIndexKey,
+      sortDirKey,
+      cellText,
+      rowText,
+      prefilter = null,
+    }) {
+      localStorage.setItem(storageKey, this[filterKey] || "");
+      const q = String(this[filterKey] || "").toLowerCase().trim();
+      let rows = Array.isArray(this[sourceKey]) ? this[sourceKey].slice() : [];
+      if (typeof prefilter === "function") rows = rows.filter((row) => prefilter.call(this, row));
+      if (q) rows = rows.filter((row) => rowText.call(this, row).includes(q));
+      rows.sort((a, b) => this.compareValues(
+        cellText.call(this, a, this[sortIndexKey]),
+        cellText.call(this, b, this[sortIndexKey]),
+      ));
+      if (this[sortDirKey] === "desc") rows.reverse();
+      this[visibleKey] = rows;
     },
 
     toUtcStringMaybe(value) {

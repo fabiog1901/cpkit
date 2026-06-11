@@ -203,7 +203,7 @@
 
           <div class="table-container">
             <div class="table-scroll">
-              <table>
+              <table class="data-table jobs-table">
                 <thead>
                   <tr>
                     <th data-sort="number" :class="jobsSortClass(0)" @click="sortJobs(0)">Job ID</th>
@@ -334,7 +334,7 @@
               </div>
               <div class="table-container">
                 <div class="table-scroll">
-                  <table>
+                  <table class="data-table job-tasks-table">
                     <thead>
                       <tr>
                         <th>Task ID</th>
@@ -412,7 +412,7 @@
 
           <div class="table-container events-table-container">
             <div class="table-scroll events-table-scroll">
-              <table class="events-table">
+              <table class="data-table events-table">
                 <thead>
                   <tr>
                     <th data-sort="date" :class="eventsSortClass(0)" @click="sortEvents(0)">Timestamp</th>
@@ -429,7 +429,8 @@
                       <td><span x-text="toUtcStringMaybe(event.ts)"></span></td>
                       <td><span x-text="event.user_id || '-'"></span></td>
                       <td>
-                        <span class="service-pill event-action-pill" x-text="event.action || '-'"></span>
+                        <span class="service-pill event-action-pill" :style="actionPillStyle(event.action)"
+                          x-text="event.action || '-'"></span>
                       </td>
                       <td class="events-details-cell">
                         <pre class="events-yaml" x-text="eventsDetailsText(event)"></pre>
@@ -549,7 +550,7 @@
 
           <div class="table-container">
             <div class="table-scroll">
-              <table>
+              <table class="data-table">
                 <thead>
                   <tr>
                     <th data-sort="string" :class="apiKeysSortClass(0)" @click="sortApiKeys(0)">Access Key</th>
@@ -651,7 +652,7 @@
 
           <div class="table-container">
             <div class="table-scroll">
-              <table>
+              <table class="data-table">
                 <thead>
                   <tr>
                     <th data-sort="string" :class="settingsSortClass(0)" @click="sortSettings(0)">Key</th>

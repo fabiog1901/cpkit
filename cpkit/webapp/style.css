@@ -823,25 +823,29 @@ select {
     radial-gradient(circle at 100% 120%, rgba(37, 99, 235, 0.4) 0, transparent 55%);
 }
 
-table {
+.data-table {
   width: 100%;
   border-collapse: collapse;
   min-width: 780px;
 }
 
-.jobs-main table {
+.jobs-table {
   min-width: 1080px;
 }
 
-th,
-td {
+.job-tasks-table {
+  min-width: 760px;
+}
+
+.data-table th,
+.data-table td {
   padding: 10px 12px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.16);
   text-align: left;
   vertical-align: top;
 }
 
-th {
+.data-table th {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -854,23 +858,23 @@ th {
   user-select: none;
 }
 
-th[data-sort]::after {
+.data-table tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.data-table tbody tr:nth-child(odd) {
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.data-table tbody tr:hover {
+  background: rgba(30, 64, 175, 0.32);
+}
+
+.data-table th[data-sort]::after {
   content: "⇅";
   margin-left: 6px;
   font-size: 11px;
   opacity: 0.4;
-}
-
-.jobs-main tbody tr:nth-child(even) {
-  background: rgba(23, 34, 60, 0.85);
-}
-
-.jobs-main tbody tr:nth-child(odd) {
-  background: rgba(15, 23, 42, 0.45);
-}
-
-.jobs-main tbody tr:hover {
-  background: rgba(30, 64, 175, 0.5);
 }
 
 .events-layout {
@@ -899,6 +903,12 @@ th[data-sort]::after {
 }
 
 .event-action-pill {
+  min-width: 110px;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   max-width: 280px;
   white-space: normal;
 }
