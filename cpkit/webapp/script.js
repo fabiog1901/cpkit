@@ -249,9 +249,12 @@ window.app = function () {
     async logout() {
       try {
         await fetch("/api/auth/logout", { method: "POST" });
+      } catch (e) {
+        console.error(e);
       } finally {
         this.setAuthRequired(this.authLoginPath, "");
-        window.location.assign(this.authLoginPath || "/api/auth/login");
+        this.authChecked = true;
+        window.location.assign("/");
       }
     },
 
@@ -319,14 +322,18 @@ window.app = function () {
       return routes[view] || "/";
     },
 
-    setView(next) {
+    async setView(next) {
+      if (next === this.view) {
+        await this.ensureViewData();
+        return;
+      }
       if (!this.canAccessView(next)) {
         this.handleForbiddenView(next);
         return;
       }
       this.view = next;
       window.location.hash = this.routeForView(next);
-      this.ensureViewData();
+      await this.ensureViewData();
     },
 
     canAccessView(viewName) {
@@ -484,6 +491,7 @@ window.app = function () {
 
     openJob(jobId) {
       this.selectedJobId = String(jobId || "");
+      this.selectedJobDetails = null;
       this.view = "job";
       window.location.hash = this.routeForView("job");
       this.refreshSelectedJobDetails();
