@@ -27,6 +27,10 @@ class PlaybookResponse(BaseModel):
     modified_content: str
 
 
+class PlaybookListResponse(BaseModel):
+    playbooks: list[str]
+
+
 class PlaybookVersionResponse(BaseModel):
     playbook_version: str
     original_content: str

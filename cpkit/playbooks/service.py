@@ -12,7 +12,13 @@ from cpkit.errors import (
 )
 from cpkit.time import STRFTIME
 
-from .types import Playbook, PlaybookOverview, PlaybookResponse, PlaybookVersionResponse
+from .types import (
+    Playbook,
+    PlaybookListResponse,
+    PlaybookOverview,
+    PlaybookResponse,
+    PlaybookVersionResponse,
+)
 
 PlaybookAuditHook = Callable[[Any, str, str, dict[str, Any]], None]
 
@@ -30,6 +36,17 @@ class PlaybooksService:
         self.version_created_hook = version_created_hook
         self.version_deleted_hook = version_deleted_hook
         self.default_set_hook = default_set_hook
+
+    def list_playbooks(self) -> PlaybookListResponse:
+        try:
+            names = self.repo.list_playbook_names()
+        except RepositoryError as err:
+            raise from_repository_error(
+                err,
+                unavailable_message="Playbooks are temporarily unavailable.",
+                fallback_message="Unable to list playbooks.",
+            ) from err
+        return PlaybookListResponse(playbooks=names)
 
     def get_playbook(self, name: str) -> PlaybookResponse:
         try:

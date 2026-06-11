@@ -1,6 +1,6 @@
 """Repository mixin for framework-owned versioned playbooks."""
 
-from cpkit.db import execute_stmt, fetch_all, fetch_one
+from cpkit.db import execute_stmt, fetch_all, fetch_one, fetch_scalar
 
 from .types import Playbook, PlaybookOverview
 
@@ -8,6 +8,18 @@ PLAYBOOKS_TABLE = "cpkit.playbooks"
 
 
 class PlaybooksRepositoryMixin:
+    def list_playbook_names(self) -> list[str]:
+        names = fetch_scalar(
+            f"""
+            SELECT array_agg(name ORDER BY name)
+            FROM (
+                SELECT DISTINCT name
+                FROM {PLAYBOOKS_TABLE}
+            ) playbook_names
+            """,
+        )
+        return [str(name) for name in (names or [])]
+
     def get_playbook(self, name: str, version: str) -> Playbook:
         return fetch_one(
             f"""

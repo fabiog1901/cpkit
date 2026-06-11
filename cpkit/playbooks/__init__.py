@@ -13,6 +13,7 @@ from .router import create_playbooks_router
 from .service import PlaybooksService
 from .types import (
     Playbook,
+    PlaybookListResponse,
     PlaybookOverview,
     PlaybookResponse,
     PlaybookSaveRequest,
@@ -25,6 +26,7 @@ __all__ = [
     "LiteAnsibleRunner",
     "LiteRunnerResult",
     "Playbook",
+    "PlaybookListResponse",
     "PlaybookOverview",
     "PlaybookResponse",
     "PlaybookSaveRequest",

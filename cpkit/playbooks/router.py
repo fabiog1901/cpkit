@@ -5,7 +5,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from .types import PlaybookResponse, PlaybookSaveRequest, PlaybookVersionResponse
+from .types import (
+    PlaybookListResponse,
+    PlaybookResponse,
+    PlaybookSaveRequest,
+    PlaybookVersionResponse,
+)
 
 
 def create_playbooks_router(
@@ -16,6 +21,15 @@ def create_playbooks_router(
     service_error_type: type[Exception] = Exception,
 ) -> APIRouter:
     router = APIRouter(prefix="/playbooks", tags=["cpkit"])
+
+    @router.get("/", response_model=PlaybookListResponse)
+    async def list_playbooks(
+        service=Depends(get_service),
+    ) -> PlaybookListResponse:
+        try:
+            return service.list_playbooks()
+        except service_error_type as err:
+            handle_service_error(err)
 
     @router.get("/{name}", response_model=PlaybookResponse)
     async def get_playbook(

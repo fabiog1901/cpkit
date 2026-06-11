@@ -754,10 +754,16 @@
               <div class="playbook-meta-card">
                 <label class="hint" for="playbook-name-input">Playbook</label>
                 <div class="playbook-load-row">
-                  <input id="playbook-name-input" class="input" x-model="selectedPlaybook" placeholder="PLAYBOOK_NAME" />
-                  <button class="btn" @click="loadPlaybookSelection(selectedPlaybook)" :disabled="pbLoading.load">
-                    <span x-show="!pbLoading.load">Load</span>
-                    <span x-show="pbLoading.load">Loading...</span>
+                  <select id="playbook-name-input" class="select playbook-version-select" x-model="selectedPlaybook"
+                    @change="onSelectPlaybookName()" :disabled="pbLoading.list || pbLoading.load || !playbooks.length">
+                    <option value="">Select playbook...</option>
+                    <template x-for="playbook in playbooks" :key="playbook">
+                      <option :value="playbook" x-text="playbook"></option>
+                    </template>
+                  </select>
+                  <button class="btn" @click="reloadPlaybooks()" :disabled="pbLoading.list || pbLoading.load">
+                    <span x-show="!pbLoading.list">Refresh list</span>
+                    <span x-show="pbLoading.list">Loading...</span>
                   </button>
                 </div>
               </div>

@@ -69,8 +69,9 @@ window.app = function () {
     _settingsAutoTimer: null,
     _settingsToastTimer: null,
 
+    playbooks: [],
     selectedPlaybook: "",
-    pbLoading: { load: false, save: false, setDefault: false, delete: false },
+    pbLoading: { list: false, load: false, save: false, setDefault: false, delete: false },
     pbToast: { message: "", ok: true },
     pbLastUpdatedUtc: null,
     pbDefaultVersion: "",
@@ -370,7 +371,7 @@ window.app = function () {
       else if (this.view === "events") await this.refreshEvents();
       else if (this.view === "api_keys") await this.refreshApiKeys();
       else if (this.view === "settings") await this.refreshSettings();
-      else if (this.view === "playbooks") this.ensureAce();
+      else if (this.view === "playbooks") await this.ensurePlaybooksView();
       else if (this.view === "dashboard") await this.refreshDashboardOverview({ onlyIfEmpty: true });
     },
 
@@ -1006,6 +1007,34 @@ window.app = function () {
       this.pbToast = { ok: true, message: "Editor ready." };
     },
 
+    async ensurePlaybooksView() {
+      this.ensureAce();
+      if (!this.pbLoading.list) await this.reloadPlaybooks();
+    },
+
+    async reloadPlaybooks() {
+      this.pbLoading.list = true;
+      try {
+        const payload = await this.apiFetch("/admin/playbooks/", { method: "GET" });
+        this.playbooks = Array.isArray(payload?.playbooks) ? payload.playbooks.map(String) : [];
+        if (!this.selectedPlaybook && this.playbooks.length > 0) {
+          this.selectedPlaybook = this.playbooks[0];
+          await this.loadPlaybookSelection(this.selectedPlaybook);
+        } else if (this.selectedPlaybook && !this.playbooks.includes(this.selectedPlaybook)) {
+          this.selectedPlaybook = "";
+          this.pbVersions = [];
+          this.pbDefaultVersion = "";
+          this.pbSelectedVersion = "";
+          this.pbEditorText = "";
+          this.setAceValue(this._ace, "");
+        }
+      } catch (e) {
+        this.pbToast = { ok: false, message: this.errorMessage(e, "Failed to list playbooks.") };
+      } finally {
+        this.pbLoading.list = false;
+      }
+    },
+
     applyPlaybookPayload(payload) {
       const content = payload?.modified_content ?? payload?.original_content ?? "";
       this.pbVersions = Array.isArray(payload?.available_versions) ? payload.available_versions.map(String) : [];
@@ -1014,6 +1043,10 @@ window.app = function () {
       this.pbEditorText = String(content ?? "");
       this.setAceValue(this._ace, this.pbEditorText);
       this.pbLastUpdatedUtc = this.utcNowString();
+    },
+
+    async onSelectPlaybookName() {
+      await this.loadPlaybookSelection(this.selectedPlaybook);
     },
 
     async loadPlaybookSelection(name) {
