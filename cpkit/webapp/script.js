@@ -986,6 +986,7 @@ window.app = function () {
       if (typeof onChange === "function") {
         editor.session.on("change", () => onChange(editor.getValue(), editor));
       }
+      if (typeof editor.resize === "function") editor.resize();
       return editor;
     },
 
@@ -994,6 +995,7 @@ window.app = function () {
       const next = String(value ?? "");
       if (typeof editor.getValue === "function" && editor.getValue() === next) return;
       editor.setValue(next, -1);
+      if (typeof editor.resize === "function") editor.resize();
     },
 
     destroyAceEditor(editor) {
@@ -1020,6 +1022,11 @@ window.app = function () {
         return;
       }
       this._aceReady = true;
+      const resize = () => {
+        if (this._ace && typeof this._ace.resize === "function") this._ace.resize();
+      };
+      if (typeof this.$nextTick === "function") this.$nextTick(resize);
+      else resize();
     },
 
     async ensurePlaybooksView() {
