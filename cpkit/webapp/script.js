@@ -80,6 +80,7 @@ window.app = function () {
     pbEditorText: "",
     _ace: null,
     _aceReady: false,
+    _pbToastTimer: null,
 
     modal: {
       userInfo: { open: false },
@@ -936,6 +937,15 @@ window.app = function () {
       }, 4000);
     },
 
+    showPlaybookToast(message, ok, { autoDismiss = ok } = {}) {
+      if (this._pbToastTimer) clearTimeout(this._pbToastTimer);
+      this.pbToast = { message, ok };
+      if (!autoDismiss) return;
+      this._pbToastTimer = setTimeout(() => {
+        this.pbToast = { message: "", ok: true };
+      }, 4000);
+    },
+
     isAceAvailable() {
       return Boolean(typeof window !== "undefined" && window.ace);
     },
@@ -1000,7 +1010,7 @@ window.app = function () {
         },
       });
       if (!this._ace) {
-        this.pbToast = { ok: false, message: "Ace editor is not available; using plain text editor." };
+        this.showPlaybookToast("Ace editor is not available; using plain text editor.", false);
         return;
       }
       this._aceReady = true;
@@ -1028,7 +1038,7 @@ window.app = function () {
           this.setAceValue(this._ace, "");
         }
       } catch (e) {
-        this.pbToast = { ok: false, message: this.errorMessage(e, "Failed to list playbooks.") };
+        this.showPlaybookToast(this.errorMessage(e, "Failed to list playbooks."), false);
       } finally {
         this.pbLoading.list = false;
       }
@@ -1051,7 +1061,7 @@ window.app = function () {
     async loadPlaybookSelection(name) {
       const playbookName = String(name || "").trim();
       if (!playbookName) {
-        this.pbToast = { ok: false, message: "Enter a playbook name." };
+        this.showPlaybookToast("Enter a playbook name.", false);
         return;
       }
       this.ensureAce();
@@ -1061,7 +1071,7 @@ window.app = function () {
         this.selectedPlaybook = playbookName;
         this.applyPlaybookPayload(payload);
       } catch (e) {
-        this.pbToast = { ok: false, message: this.errorMessage(e, "Failed to load playbook.") };
+        this.showPlaybookToast(this.errorMessage(e, "Failed to load playbook."), false);
       } finally {
         this.pbLoading.load = false;
       }
@@ -1079,7 +1089,7 @@ window.app = function () {
         );
         this.applyPlaybookPayload(payload);
       } catch (e) {
-        this.pbToast = { ok: false, message: this.errorMessage(e, "Failed to load version.") };
+        this.showPlaybookToast(this.errorMessage(e, "Failed to load version."), false);
       } finally {
         this.pbLoading.load = false;
       }
@@ -1088,7 +1098,7 @@ window.app = function () {
     async savePlaybook() {
       const name = String(this.selectedPlaybook || "").trim();
       if (!name) {
-        this.pbToast = { ok: false, message: "Enter a playbook name." };
+        this.showPlaybookToast("Enter a playbook name.", false);
         return;
       }
       this.ensureAce();
@@ -1099,9 +1109,9 @@ window.app = function () {
           body: { content: this._aceReady && this._ace ? this._ace.getValue() : this.pbEditorText },
         });
         this.applyPlaybookPayload(payload);
-        this.pbToast = { ok: true, message: `Saved ${name}.` };
+        this.showPlaybookToast(`Saved ${name}.`, true);
       } catch (e) {
-        this.pbToast = { ok: false, message: this.errorMessage(e, "Failed to save playbook.") };
+        this.showPlaybookToast(this.errorMessage(e, "Failed to save playbook."), false);
       } finally {
         this.pbLoading.save = false;
       }
@@ -1117,9 +1127,9 @@ window.app = function () {
           method: "PUT",
         });
         this.pbDefaultVersion = version;
-        this.pbToast = { ok: true, message: `Set ${version} as default.` };
+        this.showPlaybookToast(`Set ${version} as default.`, true);
       } catch (e) {
-        this.pbToast = { ok: false, message: this.errorMessage(e, "Failed to set default version.") };
+        this.showPlaybookToast(this.errorMessage(e, "Failed to set default version."), false);
       } finally {
         this.pbLoading.setDefault = false;
       }
@@ -1136,9 +1146,9 @@ window.app = function () {
           method: "DELETE",
         });
         this.applyPlaybookPayload(payload);
-        this.pbToast = { ok: true, message: `Deleted ${version}.` };
+        this.showPlaybookToast(`Deleted ${version}.`, true);
       } catch (e) {
-        this.pbToast = { ok: false, message: this.errorMessage(e, "Failed to delete version.") };
+        this.showPlaybookToast(this.errorMessage(e, "Failed to delete version."), false);
       } finally {
         this.pbLoading.delete = false;
       }
