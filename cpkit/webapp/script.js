@@ -1004,7 +1004,6 @@ window.app = function () {
         return;
       }
       this._aceReady = true;
-      this.pbToast = { ok: true, message: "Editor ready." };
     },
 
     async ensurePlaybooksView() {
