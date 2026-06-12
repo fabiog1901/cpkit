@@ -539,10 +539,21 @@ window.app = function () {
         .map((key) => cardsByKey.get(key))
         .filter(Boolean);
       const orderedKeys = new Set(ordered.map((card) => card.key));
+      const firstBuiltinIndex = ordered.findIndex((card) => card.key.startsWith("builtin:"));
+      const missingExtensionCards = extensionCards.filter((card) => !orderedKeys.has(card.key));
+      const missingBuiltinCards = builtinCards.filter((card) => !orderedKeys.has(card.key));
+      if (firstBuiltinIndex >= 0) {
+        return [
+          ...ordered.slice(0, firstBuiltinIndex),
+          ...missingExtensionCards,
+          ...ordered.slice(firstBuiltinIndex),
+          ...missingBuiltinCards,
+        ];
+      }
       return [
         ...ordered,
-        ...extensionCards.filter((card) => !orderedKeys.has(card.key)),
-        ...builtinCards.filter((card) => !orderedKeys.has(card.key)),
+        ...missingExtensionCards,
+        ...missingBuiltinCards,
       ];
     },
 

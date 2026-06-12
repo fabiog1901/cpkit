@@ -48,6 +48,11 @@ select {
   min-height: 100vh;
 }
 
+.page,
+.app-shell {
+  height: 100vh;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -370,6 +375,23 @@ select {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.dashboard-main {
+  overflow: auto;
+  padding-right: 4px;
+  padding-bottom: 24px;
+}
+
+.dashboard-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.dashboard-card-grid > .dashboard-draggable-card {
+  flex: 1 1 calc(50% - 7px);
+  min-width: min(100%, 360px);
 }
 
 .dashboard-home {
@@ -1513,6 +1535,10 @@ th[data-sort].sort-desc::after,
   .dashboard-kv-grid,
   .playbook-meta-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-card-grid > .dashboard-draggable-card {
+    flex-basis: 100%;
   }
 
   .layout {
