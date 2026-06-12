@@ -189,8 +189,15 @@ window.app = function () {
 
     applyExtensionDashboardTemplate() {
       const template = document.getElementById("cpkit-extension-dashboard");
-      const slot = document.getElementById("cpkit-dashboard-extension-slot");
       this.extensionDashboardTemplateLoaded = Boolean(template);
+      if (!template) return;
+      this.renderExtensionDashboardTemplate();
+      setTimeout(() => this.renderExtensionDashboardTemplate(), 0);
+    },
+
+    renderExtensionDashboardTemplate() {
+      const template = document.getElementById("cpkit-extension-dashboard");
+      const slot = document.getElementById("cpkit-dashboard-extension-slot");
       if (!template || !slot) return;
       slot.innerHTML = "";
       slot.appendChild(template.content.cloneNode(true));
@@ -530,29 +537,33 @@ window.app = function () {
         kind: "extension",
         item,
       }));
+      const templateCards = this.extensionDashboardTemplateLoaded
+        ? [{ key: "app:dashboard-template", kind: "template" }]
+        : [];
       const builtinCards = [
         { key: "builtin:jobs", kind: "jobs" },
         { key: "builtin:events", kind: "events" },
       ];
-      const cardsByKey = new Map([...extensionCards, ...builtinCards].map((card) => [card.key, card]));
+      const appCards = [...templateCards, ...extensionCards];
+      const cardsByKey = new Map([...appCards, ...builtinCards].map((card) => [card.key, card]));
       const ordered = this.dashboardCardOrder
         .map((key) => cardsByKey.get(key))
         .filter(Boolean);
       const orderedKeys = new Set(ordered.map((card) => card.key));
       const firstBuiltinIndex = ordered.findIndex((card) => card.key.startsWith("builtin:"));
-      const missingExtensionCards = extensionCards.filter((card) => !orderedKeys.has(card.key));
+      const missingAppCards = appCards.filter((card) => !orderedKeys.has(card.key));
       const missingBuiltinCards = builtinCards.filter((card) => !orderedKeys.has(card.key));
       if (firstBuiltinIndex >= 0) {
         return [
           ...ordered.slice(0, firstBuiltinIndex),
-          ...missingExtensionCards,
+          ...missingAppCards,
           ...ordered.slice(firstBuiltinIndex),
           ...missingBuiltinCards,
         ];
       }
       return [
         ...ordered,
-        ...missingExtensionCards,
+        ...missingAppCards,
         ...missingBuiltinCards,
       ];
     },

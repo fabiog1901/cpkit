@@ -48,11 +48,6 @@ select {
   min-height: 100vh;
 }
 
-.page,
-.app-shell {
-  height: 100vh;
-}
-
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -385,7 +380,7 @@ select {
 
 .dashboard-layout {
   align-items: flex-start;
-  overflow: auto;
+  overflow: visible;
 }
 
 .dashboard-card-grid {
@@ -397,6 +392,15 @@ select {
 .dashboard-card-grid > .dashboard-draggable-card {
   flex: 1 1 calc(50% - 7px);
   min-width: min(100%, 360px);
+}
+
+.dashboard-template-card {
+  min-height: 160px;
+}
+
+.dashboard-template-inner,
+.dashboard-extension-slot {
+  min-height: 0;
 }
 
 .dashboard-home {

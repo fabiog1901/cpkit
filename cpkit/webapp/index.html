@@ -101,18 +101,12 @@
         </aside>
 
         <section class="main dashboard-main">
-          <section class="dashboard-extension-section" x-show="extensionDashboardTemplateLoaded">
-            <div class="dashboard-overview-bar">
-              <div class="dashboard-card-kicker">Application Dashboard</div>
-            </div>
-            <div id="cpkit-dashboard-extension-slot" class="dashboard-extension-slot"></div>
-          </section>
-
           <div class="dashboard-grid dashboard-card-grid" x-show="dashboardCards().length > 0">
             <template x-for="card in dashboardCards()" :key="card.key">
               <article class="dashboard-card dashboard-draggable-card"
                 :class="{
                   'dashboard-table-card': card.kind === 'jobs' || card.kind === 'events',
+                  'dashboard-template-card': card.kind === 'template',
                   'dashboard-card-button': card.kind === 'extension' && card.item.view,
                   'dashboard-card-static': card.kind === 'extension' && !card.item.view,
                   'is-dragging': dashboardDragKey === card.key
@@ -133,6 +127,12 @@
                         x-text="dashboardItemValue(card.item)"></div>
                     </div>
                     <p x-show="card.item.description" x-text="card.item.description"></p>
+                  </div>
+                </template>
+
+                <template x-if="card.kind === 'template'">
+                  <div class="dashboard-card-inner dashboard-template-inner">
+                    <div id="cpkit-dashboard-extension-slot" class="dashboard-extension-slot"></div>
                   </div>
                 </template>
 

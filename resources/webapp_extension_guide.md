@@ -153,10 +153,10 @@ extension route.
 
 If the app needs richer dashboard content, such as charts, images, maps, or
 custom multi-card layouts, add a template with `id="cpkit-extension-dashboard"`
-to `extension.html`. cpkit clones that template into the top application
-dashboard area, above the draggable card grid. Use `dashboardEnsure` to name an
-extension method that should refresh application dashboard data when the
-Dashboard loads.
+to `extension.html`. cpkit clones that template into a draggable dashboard slot
+that participates in the same saved ordering as app metric cards and cpkit's
+built-in Jobs and Events cards. Use `dashboardEnsure` to name an extension
+method that should refresh application dashboard data when the Dashboard loads.
 
 ## Optional Ace Editor Helper
 
