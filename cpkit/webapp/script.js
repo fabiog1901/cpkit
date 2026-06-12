@@ -123,10 +123,10 @@ window.app = function () {
       });
       this.setManagedInterval("_apiKeysAutoTimer", () => {
         if (this.apiKeysAutoRefreshEnabled && this.view === "api_keys") this.refreshApiKeys();
-      }, 20000);
+      });
       this.setManagedInterval("_settingsAutoTimer", () => {
         if (this.settingsAutoRefreshEnabled && this.view === "settings") this.refreshSettings();
-      }, 20000);
+      });
       this.refreshDashboardOverview({ onlyIfEmpty: true });
       if (typeof extension.init === "function") {
         await extension.init.call(this);
@@ -254,7 +254,7 @@ window.app = function () {
       this.dashboardCardOrder = this.loadDashboardCardOrder();
     },
 
-    setManagedInterval(key, fn, ms = 15000) {
+    setManagedInterval(key, fn, ms = 5000) {
       if (this[key]) clearInterval(this[key]);
       this[key] = setInterval(fn, ms);
     },
