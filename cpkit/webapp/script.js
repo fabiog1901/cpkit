@@ -283,7 +283,10 @@ window.app = function () {
       if (parts[0] === "jobs" && parts[1]) {
         next = "job";
         this.selectedJobId = parts[1];
-      } else if (parts[0] === "jobs") next = "jobs";
+      } else if (parts[0] === "jobs") {
+        next = "jobs";
+        this.jobsFilterQuery = String(route.query.filter || "");
+      }
       else if (parts[0] === "events") next = "events";
       else if (parts[0] === "admin" && parts[1] === "api-keys") next = "api_keys";
       else if (parts[0] === "admin" && parts[1] === "settings") next = "settings";
@@ -328,7 +331,7 @@ window.app = function () {
     routeForView(view) {
       const routes = {
         dashboard: "/",
-        jobs: "/jobs",
+        jobs: this.jobsRoute(),
         job: `/jobs/${encodeURIComponent(this.selectedJobId || "")}`,
         events: "/events",
         admin: "/admin",
@@ -338,6 +341,12 @@ window.app = function () {
       };
       if (extension.routes?.[view]?.path) return extension.routes[view].path;
       return routes[view] || "/";
+    },
+
+    jobsRoute() {
+      const filter = String(this.jobsFilterQuery || "").trim();
+      if (!filter) return "/jobs";
+      return `/jobs?filter=${encodeURIComponent(filter)}`;
     },
 
     async setView(next) {
@@ -645,6 +654,9 @@ window.app = function () {
 
     onJobsFilterInput() {
       this.applyJobsFilterSort();
+      if (this.view === "jobs" && typeof window !== "undefined") {
+        window.location.hash = this.jobsRoute();
+      }
     },
 
     recentJobs(limit) {
