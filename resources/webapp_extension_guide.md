@@ -63,6 +63,7 @@ window.cpkitWebappExtension = {
   dashboardEnsure: "ensureAppDashboard",
   dashboardItems: [
     {
+      key: "open-tasks",
       label: "Open Tasks",
       kicker: "TODO",
       description: "Tasks that still need work.",
@@ -142,16 +143,20 @@ entry must reference a key in `routes`. Admin routes should normally use an
 by `adminItems` as requiring `CP_ADMIN`.
 
 Use `dashboardItems` for simple application metric cards on cpkit's default
-Dashboard. cpkit keeps its built-in Jobs and Events cards first, then renders
-application dashboard cards below them. Each item can use `value`, `valueKey`,
-or `countKey`; `valueKey` and `countKey` read from the Alpine state object.
-Set `view` when clicking the card should navigate to an extension route.
+Dashboard. cpkit renders application dashboard cards first by default and keeps
+its built-in Jobs and Events cards at the bottom. Users can drag cards to
+reorder them; the order is stored in browser local storage. Set a stable `key`
+on each item so saved ordering survives label or route changes. Each item can
+use `value`, `valueKey`, or `countKey`; `valueKey` and `countKey` read from the
+Alpine state object. Set `view` when clicking the card should navigate to an
+extension route.
 
 If the app needs richer dashboard content, such as charts, images, maps, or
 custom multi-card layouts, add a template with `id="cpkit-extension-dashboard"`
-to `extension.html`. cpkit clones that template into the Dashboard below the
-built-in cards. Use `dashboardEnsure` to name an extension method that should
-refresh application dashboard data when the Dashboard loads.
+to `extension.html`. cpkit clones that template into the top application
+dashboard area, above the draggable card grid. Use `dashboardEnsure` to name an
+extension method that should refresh application dashboard data when the
+Dashboard loads.
 
 ## Optional Ace Editor Helper
 

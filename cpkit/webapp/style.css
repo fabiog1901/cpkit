@@ -397,6 +397,12 @@ select {
   text-align: left;
 }
 
+.dashboard-card-inner {
+  display: grid;
+  gap: 10px;
+  height: 100%;
+}
+
 .dashboard-card-button {
   cursor: pointer;
 }
@@ -406,14 +412,34 @@ select {
 }
 
 .dashboard-table-card {
-  display: flex;
-  flex-direction: column;
   min-height: 430px;
 }
 
-.dashboard-table-card > .dashboard-mini-table-wrap {
+.dashboard-table-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.dashboard-table-inner > .dashboard-mini-table-wrap {
   flex: 1 1 auto;
   min-height: 232px;
+}
+
+.dashboard-draggable-card {
+  cursor: grab;
+  transition: border-color 120ms ease, opacity 120ms ease, transform 120ms ease;
+}
+
+.dashboard-draggable-card:active {
+  cursor: grabbing;
+}
+
+.dashboard-draggable-card.is-dragging {
+  opacity: 0.58;
+  border-color: rgba(45, 212, 191, 0.6);
+  transform: scale(0.99);
 }
 
 .dashboard-link-button {

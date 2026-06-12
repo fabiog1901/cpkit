@@ -7,6 +7,8 @@ window.app = function () {
     extensionAdminItems: Array.isArray(extension.adminItems) ? extension.adminItems : [],
     extensionDashboardItems: Array.isArray(extension.dashboardItems) ? extension.dashboardItems : [],
     extensionDashboardTemplateLoaded: false,
+    dashboardCardOrder: [],
+    dashboardDragKey: "",
     brand: {
       logoText: "ck",
       appName: "cpkit",
@@ -207,6 +209,7 @@ window.app = function () {
       this.apiKeysFilterQuery = localStorage.getItem("cpkit_api_keys_filter") || "";
       this.settingsFilterQuery = localStorage.getItem("cpkit_settings_filter") || "";
       this.settingsCategoryTab = localStorage.getItem("cpkit_settings_category") || "all";
+      this.dashboardCardOrder = this.loadDashboardCardOrder();
     },
 
     setManagedInterval(key, fn, ms = 15000) {
@@ -490,8 +493,9 @@ window.app = function () {
     normalizedExtensionDashboardItems() {
       return this.extensionDashboardItems
         .filter((item) => item && (item.label || item.valueKey || item.countKey || item.value !== undefined))
-        .map((item) => ({
+        .map((item, index) => ({
           ...item,
+          key: item.key || item.id || item.view || `item-${index}`,
           label: item.label || item.valueKey || item.countKey || "Metric",
           kicker: item.kicker || "Application",
           description: item.description || "",
@@ -518,6 +522,67 @@ window.app = function () {
 
     openDashboardItem(item) {
       if (item?.view) this.setView(item.view);
+    },
+
+    dashboardCards() {
+      const extensionCards = this.normalizedExtensionDashboardItems().map((item) => ({
+        key: `app:${item.key}`,
+        kind: "extension",
+        item,
+      }));
+      const builtinCards = [
+        { key: "builtin:jobs", kind: "jobs" },
+        { key: "builtin:events", kind: "events" },
+      ];
+      const cardsByKey = new Map([...extensionCards, ...builtinCards].map((card) => [card.key, card]));
+      const ordered = this.dashboardCardOrder
+        .map((key) => cardsByKey.get(key))
+        .filter(Boolean);
+      const orderedKeys = new Set(ordered.map((card) => card.key));
+      return [
+        ...ordered,
+        ...extensionCards.filter((card) => !orderedKeys.has(card.key)),
+        ...builtinCards.filter((card) => !orderedKeys.has(card.key)),
+      ];
+    },
+
+    loadDashboardCardOrder() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem("cpkit_dashboard_card_order") || "[]");
+        return Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch {
+        return [];
+      }
+    },
+
+    persistDashboardCardOrder() {
+      localStorage.setItem("cpkit_dashboard_card_order", JSON.stringify(this.dashboardCardOrder));
+    },
+
+    dashboardCardDragStart(event, key) {
+      this.dashboardDragKey = key;
+      if (event?.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", key);
+      }
+    },
+
+    dashboardCardDragEnd() {
+      this.dashboardDragKey = "";
+    },
+
+    dashboardCardDrop(event, targetKey) {
+      const sourceKey = event?.dataTransfer?.getData("text/plain") || this.dashboardDragKey;
+      if (!sourceKey || sourceKey === targetKey) return;
+      const keys = this.dashboardCards().map((card) => card.key);
+      const from = keys.indexOf(sourceKey);
+      const to = keys.indexOf(targetKey);
+      if (from < 0 || to < 0) return;
+      const [movedKey] = keys.splice(from, 1);
+      keys.splice(keys.indexOf(targetKey), 0, movedKey);
+      this.dashboardCardOrder = keys;
+      this.persistDashboardCardOrder();
+      this.dashboardDragKey = "";
     },
 
     async refreshDashboardOverview({ onlyIfEmpty = false } = {}) {
