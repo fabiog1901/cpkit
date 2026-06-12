@@ -2,6 +2,7 @@
   window.cpkitWebappExtension = {
     htmlPath: "/app/extension.html",
     navItems: [{ view: "todos", label: "Todos" }],
+    dashboardEnsure: "ensureTodosDashboard",
     routes: {
       todos: {
         path: "/todos",
@@ -32,6 +33,11 @@
       },
     },
     methods: {
+      async ensureTodosDashboard({ onlyIfEmpty = false } = {}) {
+        if (onlyIfEmpty && this.todos.length > 0) return;
+        if (!this.todosLoading.list) await this.refreshTodos();
+      },
+
       async ensureTodosView() {
         if (!this.todosLoading.list) await this.refreshTodos();
       },

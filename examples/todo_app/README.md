@@ -21,6 +21,11 @@ The app mounts cpkit's template webapp at `/` and the API at `/api`.
 It also contributes a small webapp extension at `/app` that adds a Todos page
 to the cpkit shell with separate HTML, CSS, and JavaScript files.
 
+The extension also demonstrates dashboard composition. Its
+`cpkit-extension-dashboard` template contains multiple direct dashboard cards
+with stable `data-dashboard-key` values; cpkit renders those cards as draggable
+siblings next to the built-in Jobs and Events cards.
+
 ## API
 
 - `GET /api/todos/`

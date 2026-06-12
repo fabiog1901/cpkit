@@ -5,6 +5,55 @@
   data-login-subtitle="Authenticate to manage example tasks"
 ></template>
 
+<template id="cpkit-extension-dashboard">
+  <div class="dashboard-grid">
+    <article class="dashboard-card" data-dashboard-key="todo-open-tasks">
+      <div class="dashboard-card-head">
+        <div>
+          <div class="dashboard-card-kicker">TODO</div>
+          <h3>Open Tasks</h3>
+        </div>
+        <div class="dashboard-stat" x-text="todos.filter((todo) => !todo.completed).length"></div>
+      </div>
+      <p>Tasks still waiting for someone to close them out.</p>
+    </article>
+
+    <article class="dashboard-card" data-dashboard-key="todo-completed-tasks">
+      <div class="dashboard-card-head">
+        <div>
+          <div class="dashboard-card-kicker">TODO</div>
+          <h3>Completed Tasks</h3>
+        </div>
+        <div class="dashboard-stat" x-text="todos.filter((todo) => todo.completed).length"></div>
+      </div>
+      <p>Finished work included by the current TODO filter.</p>
+    </article>
+
+    <article class="dashboard-card todo-dashboard-card" data-dashboard-key="todo-recent-tasks">
+      <div class="dashboard-card-head">
+        <div>
+          <div class="dashboard-card-kicker">TODO</div>
+          <h3>Recent Tasks</h3>
+        </div>
+        <button type="button" class="dashboard-link-button" @click="setView('todos')">Open Todos</button>
+      </div>
+      <div class="todo-dashboard-list">
+        <template x-for="todo in todos.slice(0, 5)" :key="`dashboard-todo-${todo.todo_id}`">
+          <div class="todo-dashboard-item">
+            <span class="todo-dashboard-title" x-text="todo.title"></span>
+            <span
+              class="status-pill"
+              :class="todo.completed ? 'success' : 'pending'"
+              x-text="todo.completed ? 'completed' : 'open'"
+            ></span>
+          </div>
+        </template>
+        <div class="empty-cell" x-show="todos.length === 0">No tasks yet.</div>
+      </div>
+    </article>
+  </div>
+</template>
+
 <main class="layout" x-show="view === 'todos'">
   <aside class="sidebar">
     <section>
