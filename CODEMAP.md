@@ -22,7 +22,7 @@ python tools/codemap.py --write
 
 | Package | Modules | Classes | Functions | Routes |
 | --- | ---: | ---: | ---: | ---: |
-| `cpkit` | 65 | 80 | 63 | 0 |
+| `cpkit` | 65 | 81 | 63 | 0 |
 
 ## API Routes
 
@@ -91,7 +91,7 @@ python tools/codemap.py --write
 | `cpkit/playbooks/repository.py` | Repository mixin for framework-owned versioned playbooks.; classes: PlaybooksRepositoryMixin |
 | `cpkit/playbooks/router.py` | FastAPI routes for framework playbook management.; functions: create_playbooks_router |
 | `cpkit/playbooks/service.py` | Service helpers for versioned playbook management.; classes: PlaybooksService |
-| `cpkit/playbooks/types.py` | Generic playbook data types.; classes: PlaybookOverview, Playbook, PlaybookResponse, PlaybookVersionResponse, PlaybookSaveRequest |
+| `cpkit/playbooks/types.py` | Generic playbook data types.; classes: PlaybookOverview, Playbook, PlaybookResponse, PlaybookListResponse, PlaybookVersionResponse, PlaybookSaveRequest |
 | `cpkit/repository.py` | Repository factory helpers for cpkit applications.; classes: CPKitRepo; functions: configure_repository, get_repo |
 | `cpkit/settings/__init__.py` | Settings models and repository helpers. |
 | `cpkit/settings/keys.py` | Framework-owned settings keys.; classes: FrameworkSettingKey |
