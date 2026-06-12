@@ -21,6 +21,8 @@
       todosSortDir: "desc",
       todosLoading: { list: false, save: false, delete: false, export: false },
       todosToast: { message: "", ok: true },
+      todoNotesAceEnabled: false,
+      _todoNotesAce: null,
       _todosToastTimer: null,
       modal: {
         todoEditor: {
@@ -68,11 +70,53 @@
           completed: Boolean(todo?.completed),
         };
         this.modalError.todoEditor = "";
+        setTimeout(() => this.ensureTodoNotesAce(), 0);
       },
 
       closeTodoModal() {
+        this.destroyTodoNotesAce();
         this.modal.todoEditor.open = false;
         this.modalError.todoEditor = "";
+      },
+
+      ensureTodoNotesAce() {
+        if (!this.modal.todoEditor.open) return;
+        if (typeof this.createAceEditor !== "function") {
+          this.todoNotesAceEnabled = false;
+          return;
+        }
+        if (this._todoNotesAce) {
+          if (typeof this.setAceValue === "function") {
+            this.setAceValue(this._todoNotesAce, this.modal.todoEditor.notes || "");
+          }
+          if (typeof this._todoNotesAce.resize === "function") this._todoNotesAce.resize();
+          return;
+        }
+        this._todoNotesAce = this.createAceEditor(this.$refs.todoNotesAce, {
+          mode: "text",
+          theme: "cobalt",
+          value: this.modal.todoEditor.notes || "",
+          wrap: true,
+          minLines: 8,
+          maxLines: 14,
+          onChange: (value) => {
+            this.modal.todoEditor.notes = value;
+          },
+        });
+        this.todoNotesAceEnabled = Boolean(this._todoNotesAce);
+        if (this.todoNotesAceEnabled) {
+          setTimeout(() => {
+            if (this._todoNotesAce && typeof this._todoNotesAce.resize === "function") {
+              this._todoNotesAce.resize();
+            }
+          }, 0);
+        }
+      },
+
+      destroyTodoNotesAce() {
+        if (typeof this.destroyAceEditor === "function") this.destroyAceEditor(this._todoNotesAce);
+        this._todoNotesAce = null;
+        this.todoNotesAceEnabled = false;
       },
 
       async saveTodo() {

@@ -100,8 +100,15 @@
       x-show="todosToast.message"
       x-text="todosToast.message"
     ></div>
-    <div class="table-wrap">
-      <table>
+    <div class="table-wrap todo-table-wrap">
+      <table class="todo-table">
+        <colgroup>
+          <col class="todo-col-id" />
+          <col class="todo-col-task" />
+          <col class="todo-col-status" />
+          <col class="todo-col-updated" />
+          <col class="todo-col-actions" />
+        </colgroup>
         <thead>
           <tr>
             <th @click="sortTodos(0)" :class="todosSortClass(0)">ID</th>
@@ -114,10 +121,12 @@
         <tbody>
           <template x-for="todo in todosVisibleRows" :key="todo.todo_id">
             <tr :class="{ 'todo-row-completed': todo.completed }">
-              <td x-text="todo.todo_id"></td>
+              <td><span class="ip-pill" x-text="todo.todo_id"></span></td>
               <td class="todo-title-cell">
-                <div class="todo-title strong" x-text="todo.title"></div>
-                <div class="todo-notes" x-show="todo.notes" x-text="todo.notes"></div>
+                <div class="todo-task-card">
+                  <div class="todo-title strong" x-text="todo.title"></div>
+                  <pre class="todo-notes-readonly" x-show="todo.notes" x-text="todo.notes"></pre>
+                </div>
               </td>
               <td>
                 <span
@@ -145,7 +154,7 @@
 </main>
 
 <div class="modal-backdrop" x-show="modal.todoEditor.open" @click.self="closeTodoModal()">
-  <div class="modal">
+  <div class="modal todo-modal">
     <div class="modal-head">
       <h2 x-text="modal.todoEditor.todo_id ? 'Update Task' : 'Create Task'"></h2>
       <button class="icon-btn" @click="closeTodoModal()">x</button>
@@ -157,9 +166,15 @@
       </div>
       <div>
         <label class="field-label">Notes</label>
+        <div
+          class="todo-ace-editor"
+          x-ref="todoNotesAce"
+          x-show="todoNotesAceEnabled"
+        ></div>
         <textarea
           class="input todo-textarea"
           x-model="modal.todoEditor.notes"
+          x-show="!todoNotesAceEnabled"
           placeholder="Optional notes"
         ></textarea>
       </div>
