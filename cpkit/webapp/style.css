@@ -378,9 +378,14 @@ select {
 }
 
 .dashboard-main {
-  overflow: auto;
+  overflow: visible;
   padding-right: 4px;
   padding-bottom: 24px;
+}
+
+.dashboard-layout {
+  align-items: flex-start;
+  overflow: auto;
 }
 
 .dashboard-card-grid {
