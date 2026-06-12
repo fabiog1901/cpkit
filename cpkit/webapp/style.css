@@ -400,7 +400,12 @@ select {
 
 .dashboard-template-inner,
 .dashboard-extension-slot {
+  height: 100%;
   min-height: 0;
+}
+
+.dashboard-extension-slot > .dashboard-card {
+  height: 100%;
 }
 
 .dashboard-home {

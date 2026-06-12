@@ -103,8 +103,9 @@
         <section class="main dashboard-main">
           <div class="dashboard-grid dashboard-card-grid" x-show="dashboardCards().length > 0">
             <template x-for="card in dashboardCards()" :key="card.key">
-              <article class="dashboard-card dashboard-draggable-card"
+              <article class="dashboard-draggable-card"
                 :class="{
+                  'dashboard-card': card.kind !== 'template',
                   'dashboard-table-card': card.kind === 'jobs' || card.kind === 'events',
                   'dashboard-template-card': card.kind === 'template',
                   'dashboard-card-button': card.kind === 'extension' && card.item.view,
@@ -132,7 +133,7 @@
 
                 <template x-if="card.kind === 'template'">
                   <div class="dashboard-card-inner dashboard-template-inner">
-                    <div id="cpkit-dashboard-extension-slot" class="dashboard-extension-slot"></div>
+                    <div class="dashboard-extension-slot" :id="card.domId"></div>
                   </div>
                 </template>
 

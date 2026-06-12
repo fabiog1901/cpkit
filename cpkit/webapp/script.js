@@ -7,6 +7,7 @@ window.app = function () {
     extensionAdminItems: Array.isArray(extension.adminItems) ? extension.adminItems : [],
     extensionDashboardItems: Array.isArray(extension.dashboardItems) ? extension.dashboardItems : [],
     extensionDashboardTemplateLoaded: false,
+    extensionDashboardTemplateCards: [],
     dashboardCardOrder: [],
     dashboardDragKey: "",
     brand: {
@@ -189,20 +190,54 @@ window.app = function () {
 
     applyExtensionDashboardTemplate() {
       const template = document.getElementById("cpkit-extension-dashboard");
-      this.extensionDashboardTemplateLoaded = Boolean(template);
+      const sourceCards = this.extensionDashboardTemplateSourceCards(template);
+      const seenKeys = new Map();
+      this.extensionDashboardTemplateCards = sourceCards.map((element, index) => {
+        const baseKey = element.dataset.dashboardKey || element.id || `template-${index}`;
+        const seenCount = seenKeys.get(baseKey) || 0;
+        seenKeys.set(baseKey, seenCount + 1);
+        const key = seenCount > 0 ? `${baseKey}-${seenCount + 1}` : baseKey;
+        return {
+          key: `app:template:${key}`,
+          kind: "template",
+          domId: `cpkit-dashboard-extension-slot-${this.domIdPart(key, index)}`,
+          templateKey: key,
+          templateIndex: index,
+        };
+      });
+      this.extensionDashboardTemplateLoaded = this.extensionDashboardTemplateCards.length > 0;
       if (!template) return;
-      this.renderExtensionDashboardTemplate();
-      setTimeout(() => this.renderExtensionDashboardTemplate(), 0);
+      this.renderExtensionDashboardTemplateCards();
+      setTimeout(() => this.renderExtensionDashboardTemplateCards(), 0);
     },
 
-    renderExtensionDashboardTemplate() {
+    extensionDashboardTemplateSourceCards(template) {
+      if (!template) return [];
+      const children = Array.from(template.content.children);
+      if (children.length === 1 && children[0].matches(".dashboard-grid, .dashboard-card-grid")) {
+        return Array.from(children[0].children);
+      }
+      return children;
+    },
+
+    domIdPart(value, index) {
+      const text = String(value || `template-${index}`).toLowerCase();
+      return text.replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || `template-${index}`;
+    },
+
+    renderExtensionDashboardTemplateCards() {
       const template = document.getElementById("cpkit-extension-dashboard");
-      const slot = document.getElementById("cpkit-dashboard-extension-slot");
-      if (!template || !slot) return;
-      slot.innerHTML = "";
-      slot.appendChild(template.content.cloneNode(true));
-      if (window.Alpine && typeof window.Alpine.initTree === "function") {
-        window.Alpine.initTree(slot);
+      const sourceCards = this.extensionDashboardTemplateSourceCards(template);
+      if (!sourceCards.length) return;
+      for (const card of this.extensionDashboardTemplateCards) {
+        const slot = document.getElementById(card.domId);
+        const source = sourceCards[card.templateIndex];
+        if (!slot || !source) continue;
+        slot.innerHTML = "";
+        slot.appendChild(source.cloneNode(true));
+        if (window.Alpine && typeof window.Alpine.initTree === "function") {
+          window.Alpine.initTree(slot);
+        }
       }
     },
 
@@ -537,14 +572,11 @@ window.app = function () {
         kind: "extension",
         item,
       }));
-      const templateCards = this.extensionDashboardTemplateLoaded
-        ? [{ key: "app:dashboard-template", kind: "template" }]
-        : [];
       const builtinCards = [
         { key: "builtin:jobs", kind: "jobs" },
         { key: "builtin:events", kind: "events" },
       ];
-      const appCards = [...templateCards, ...extensionCards];
+      const appCards = [...this.extensionDashboardTemplateCards, ...extensionCards];
       const cardsByKey = new Map([...appCards, ...builtinCards].map((card) => [card.key, card]));
       const ordered = this.dashboardCardOrder
         .map((key) => cardsByKey.get(key))
@@ -605,6 +637,7 @@ window.app = function () {
       this.dashboardCardOrder = keys;
       this.persistDashboardCardOrder();
       this.dashboardDragKey = "";
+      setTimeout(() => this.renderExtensionDashboardTemplateCards(), 0);
     },
 
     async refreshDashboardOverview({ onlyIfEmpty = false } = {}) {
