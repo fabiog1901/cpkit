@@ -996,7 +996,7 @@ window.app = function () {
         const data = await this.apiFetch("/admin/settings/", { method: "GET" });
         this.settings = Array.isArray(data) ? data : [];
         this.settingsDrafts = Object.fromEntries(
-          this.settings.map((row) => [row.key, row.effective_value ?? row.default_value ?? ""]),
+          this.settings.map((row) => [row.key, this.settingCurrentValue(row)]),
         );
         this.settingsLastUpdatedUtc = this.utcNowString();
         this.applySettingsFilterSort();
@@ -1022,8 +1022,12 @@ window.app = function () {
       this.applySettingsFilterSort();
     },
 
+    settingCurrentValue(row) {
+      return row?.value ?? row?.default_value ?? "";
+    },
+
     settingDraftValue(row) {
-      return this.settingsDrafts[row.key] ?? row.effective_value ?? row.default_value ?? "";
+      return this.settingsDrafts[row.key] ?? this.settingCurrentValue(row);
     },
 
     setSettingDraft(key, value) {
@@ -1031,11 +1035,11 @@ window.app = function () {
     },
 
     isSettingDirty(row) {
-      return String(this.settingDraftValue(row)) !== String(row.effective_value ?? row.default_value ?? "");
+      return String(this.settingDraftValue(row)) !== String(this.settingCurrentValue(row));
     },
 
     isSettingOverridden(row) {
-      return String(row?.effective_value ?? "") !== String(row?.default_value ?? "");
+      return String(this.settingCurrentValue(row)) !== String(row?.default_value ?? "");
     },
 
     settingValuePreview(row, value) {
