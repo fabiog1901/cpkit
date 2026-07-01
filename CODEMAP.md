@@ -22,7 +22,7 @@ python tools/codemap.py --write
 
 | Package | Modules | Classes | Functions | Routes |
 | --- | ---: | ---: | ---: | ---: |
-| `cpkit` | 65 | 81 | 63 | 0 |
+| `cpkit` | 65 | 82 | 63 | 0 |
 
 ## API Routes
 
@@ -87,7 +87,7 @@ python tools/codemap.py --write
 | `cpkit/logging/middleware.py` | FastAPI request logging middleware helpers.; functions: request_logging_middleware |
 | `cpkit/logging/setup.py` | Logging configuration for operational messages.; functions: configure_logging |
 | `cpkit/playbooks/__init__.py` | Versioned playbook models and repository helpers. |
-| `cpkit/playbooks/ansible.py` | Ansible runner helpers for framework-managed playbooks.; classes: RunnerResult, LiteRunnerResult, AnsibleRunner, LiteAnsibleRunner; functions: run_playbook, run_playbook_lite |
+| `cpkit/playbooks/ansible.py` | Ansible runner helpers for framework-managed playbooks.; classes: LoadedPlaybook, RunnerResult, LiteRunnerResult, AnsibleRunner, LiteAnsibleRunner; functions: run_playbook, run_playbook_lite |
 | `cpkit/playbooks/repository.py` | Repository mixin for framework-owned versioned playbooks.; classes: PlaybooksRepositoryMixin |
 | `cpkit/playbooks/router.py` | FastAPI routes for framework playbook management.; functions: create_playbooks_router |
 | `cpkit/playbooks/service.py` | Service helpers for versioned playbook management.; classes: PlaybooksService |

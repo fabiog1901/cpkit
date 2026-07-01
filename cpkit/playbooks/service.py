@@ -199,7 +199,9 @@ class PlaybooksService:
             modified_content=content,
         )
 
-    def _version_metadata(self, versions: list[PlaybookOverview]) -> tuple[list[str], str]:
+    def _version_metadata(
+        self, versions: list[PlaybookOverview]
+    ) -> tuple[list[str], str]:
         return (
             sorted([x.version.strftime(STRFTIME) for x in versions]),
             self._find_default_version(versions),
