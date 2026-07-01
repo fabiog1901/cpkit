@@ -1255,9 +1255,16 @@ window.app = function () {
 
     applyPlaybookPayload(payload) {
       const content = payload?.modified_content ?? payload?.original_content ?? "";
-      this.pbVersions = Array.isArray(payload?.available_versions) ? payload.available_versions.map(String) : [];
-      this.pbDefaultVersion = payload?.default_version ? String(payload.default_version) : "";
-      this.pbSelectedVersion = payload?.playbook_version ? String(payload.playbook_version) : this.pbDefaultVersion;
+      const selectedVersion = payload?.playbook_version ? String(payload.playbook_version) : this.pbDefaultVersion;
+      const versions = Array.isArray(payload?.available_versions)
+        ? payload.available_versions.map(String)
+        : this.pbVersions.slice();
+      if (selectedVersion && !versions.includes(selectedVersion)) versions.push(selectedVersion);
+      this.pbVersions = versions;
+      if (payload?.default_version !== null && payload?.default_version !== undefined) {
+        this.pbDefaultVersion = String(payload.default_version);
+      }
+      this.pbSelectedVersion = selectedVersion || this.pbDefaultVersion;
       this.pbEditorText = String(content ?? "");
       this.setAceValue(this._ace, this.pbEditorText);
       this.pbLastUpdatedUtc = this.utcNowString();

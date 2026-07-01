@@ -35,8 +35,8 @@ class PlaybookVersionResponse(BaseModel):
     playbook_version: str
     original_content: str
     modified_content: str
-    available_versions: list[str] | None = None
-    default_version: str | None = None
+    available_versions: list[str]
+    default_version: str
 
 
 class PlaybookSaveRequest(BaseModel):

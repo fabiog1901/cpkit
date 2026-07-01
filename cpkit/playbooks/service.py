@@ -81,6 +81,7 @@ class PlaybooksService:
 
     def get_playbook_version(self, name: str, version: str) -> PlaybookVersionResponse:
         try:
+            versions = self.repo.list_playbook_versions(name)
             playbook = self.repo.get_playbook(name, version)
         except RepositoryError as err:
             raise from_repository_error(
@@ -89,8 +90,11 @@ class PlaybooksService:
                 fallback_message=f"Unable to load playbook '{name}'.",
             ) from err
         content = self._decode_playbook(playbook)
+        available_versions, default_version = self._version_metadata(versions)
         return PlaybookVersionResponse(
+            available_versions=available_versions,
             playbook_version=version,
+            default_version=default_version,
             original_content=content,
             modified_content=content,
         )
@@ -186,11 +190,19 @@ class PlaybooksService:
                 conflict_message=f"A conflicting playbook version already exists for '{name}'.",
                 fallback_message=f"Unable to save playbook '{name}'.",
             ) from err
+        available_versions, default_version = self._version_metadata(versions)
         return PlaybookVersionResponse(
-            available_versions=sorted([x.version.strftime(STRFTIME) for x in versions]),
+            available_versions=available_versions,
             playbook_version=saved_version,
+            default_version=default_version,
             original_content=content,
             modified_content=content,
+        )
+
+    def _version_metadata(self, versions: list[PlaybookOverview]) -> tuple[list[str], str]:
+        return (
+            sorted([x.version.strftime(STRFTIME) for x in versions]),
+            self._find_default_version(versions),
         )
 
     @staticmethod
