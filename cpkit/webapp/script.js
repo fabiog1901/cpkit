@@ -1253,12 +1253,14 @@ window.app = function () {
       }
     },
 
-    applyPlaybookPayload(payload) {
+    applyPlaybookPayload(payload, { preserveVersions = true } = {}) {
       const content = payload?.modified_content ?? payload?.original_content ?? "";
       const selectedVersion = payload?.playbook_version ? String(payload.playbook_version) : this.pbDefaultVersion;
       const versions = Array.isArray(payload?.available_versions)
         ? payload.available_versions.map(String)
-        : this.pbVersions.slice();
+        : preserveVersions
+          ? this.pbVersions.slice()
+          : [];
       if (selectedVersion && !versions.includes(selectedVersion)) versions.push(selectedVersion);
       this.pbVersions = versions;
       if (payload?.default_version !== null && payload?.default_version !== undefined) {
@@ -1282,10 +1284,13 @@ window.app = function () {
       }
       this.ensureAce();
       this.pbLoading.load = true;
+      this.pbVersions = [];
+      this.pbDefaultVersion = "";
+      this.pbSelectedVersion = "";
       try {
         const payload = await this.apiFetch(`/admin/playbooks/${encodeURIComponent(playbookName)}`, { method: "GET" });
         this.selectedPlaybook = playbookName;
-        this.applyPlaybookPayload(payload);
+        this.applyPlaybookPayload(payload, { preserveVersions: false });
       } catch (e) {
         this.showPlaybookToast(this.errorMessage(e, "Failed to load playbook."), false);
       } finally {
