@@ -104,20 +104,24 @@ class AuditRecorder:
         job_id: int | None = None,
     ) -> bool:
         """Create and write an audit record without failing the caller."""
-        record = self._build_record(
-            event_type,
-            actor_id=actor_id,
-            metadata=metadata,
-            request_id=request_id,
-            job_id=job_id,
-        )
-        return write_audit_record_best_effort(
-            self.writer,
-            record,
-            event_type=str(event_type),
-            method_name=self.method_name,
-            event_logger=self.logger,
-        )
+        try:
+            record = self._build_record(
+                event_type,
+                actor_id=actor_id,
+                metadata=metadata,
+                request_id=request_id,
+                job_id=job_id,
+            )
+            return write_audit_record_best_effort(
+                self.writer,
+                record,
+                event_type=str(event_type),
+                method_name=self.method_name,
+                event_logger=self.logger,
+            )
+        except Exception:
+            self.logger.exception("Failed to build audit event %s", event_type)
+            return False
 
     def _build_record(
         self,
