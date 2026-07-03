@@ -140,12 +140,26 @@ def build_audit_log_record(
     default_metadata: dict[str, Any] | None = None,
 ) -> AuditLogRecord:
     """Build the standard cpkit audit log record."""
+    effective_metadata = metadata if metadata is not None else default_metadata
     return AuditLogRecord(
         user_id=actor_id,
         action=event_type,
-        details=metadata if metadata is not None else default_metadata,
+        job_id=_metadata_job_id(effective_metadata),
+        details=effective_metadata,
         request_id=request_id,
     )
+
+
+def _metadata_job_id(metadata: dict[str, Any] | None) -> int | None:
+    if not metadata:
+        return None
+    job_id = metadata.get("job_id")
+    if job_id is None:
+        return None
+    try:
+        return int(job_id)
+    except (TypeError, ValueError):
+        return None
 
 
 def configure_audit_logging(record_factory: Callable[..., Any]) -> None:

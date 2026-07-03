@@ -816,13 +816,14 @@ window.app = function () {
         event?.ts,
         event?.user_id,
         event?.action,
+        event?.job_id,
         this.eventsDetailsText(event),
         event?.request_id,
       ][index] ?? "";
     },
 
     eventsRowText(event) {
-      return this.tableRowText(event, [0, 1, 2, 3, 4], this.eventsCellText);
+      return this.tableRowText(event, [0, 1, 2, 3, 4, 5], this.eventsCellText);
     },
 
     sortEvents(index) {

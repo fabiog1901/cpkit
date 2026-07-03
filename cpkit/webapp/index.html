@@ -222,7 +222,7 @@
                         </thead>
                         <tbody>
                           <template x-for="event in recentEvents(10)"
-                            :key="`dashboard-event-${event.ts}-${event.user_id}-${event.action}-${event.request_id || ''}`">
+                            :key="`dashboard-event-${event.ts}-${event.user_id}-${event.action}-${event.job_id || ''}-${event.request_id || ''}`">
                             <tr>
                               <td x-text="relativeTimeFromNow(event.ts)"></td>
                               <td x-text="event.user_id || '-'"></td>
@@ -230,7 +230,9 @@
                                 <span class="service-pill event-action-pill" :style="actionPillStyle(event.action)"
                                   x-text="event.action || '-'"></span>
                               </td>
-                              <td x-text="event.request_id || '-'"></td>
+                              <td
+                                x-text="event.job_id === null || event.job_id === undefined ? (event.request_id || '-') : `Job ${event.job_id}`">
+                              </td>
                             </tr>
                           </template>
                           <tr x-show="events.length === 0">
@@ -509,13 +511,14 @@
                     <th data-sort="date" :class="eventsSortClass(0)" @click="sortEvents(0)">Timestamp</th>
                     <th data-sort="string" :class="eventsSortClass(1)" @click="sortEvents(1)">User ID</th>
                     <th data-sort="string" :class="eventsSortClass(2)" @click="sortEvents(2)">Action</th>
-                    <th data-sort="string" :class="eventsSortClass(3)" @click="sortEvents(3)">Details</th>
-                    <th data-sort="string" :class="eventsSortClass(4)" @click="sortEvents(4)">Context</th>
+                    <th data-sort="number" :class="eventsSortClass(3)" @click="sortEvents(3)">Job ID</th>
+                    <th data-sort="string" :class="eventsSortClass(4)" @click="sortEvents(4)">Details</th>
+                    <th data-sort="string" :class="eventsSortClass(5)" @click="sortEvents(5)">Context</th>
                   </tr>
                 </thead>
                 <tbody>
                   <template x-for="event in eventsVisibleRows"
-                    :key="`${event.ts}-${event.user_id}-${event.action}-${event.request_id || ''}`">
+                    :key="`${event.ts}-${event.user_id}-${event.action}-${event.job_id || ''}-${event.request_id || ''}`">
                     <tr>
                       <td><span x-text="toUtcStringMaybe(event.ts)"></span></td>
                       <td><span x-text="event.user_id || '-'"></span></td>
@@ -523,6 +526,7 @@
                         <span class="service-pill event-action-pill" :style="actionPillStyle(event.action)"
                           x-text="event.action || '-'"></span>
                       </td>
+                      <td><span x-text="event.job_id === null || event.job_id === undefined ? '-' : event.job_id"></span></td>
                       <td class="events-details-cell">
                         <pre class="events-yaml" x-text="eventsDetailsText(event)"></pre>
                       </td>
@@ -530,7 +534,7 @@
                     </tr>
                   </template>
                   <tr x-show="!eventsLoading.list && eventsVisibleRows.length === 0">
-                    <td colspan="5" class="empty-cell">No results.</td>
+                    <td colspan="6" class="empty-cell">No results.</td>
                   </tr>
                 </tbody>
               </table>

@@ -177,7 +177,7 @@ class Repo(CPKitRepo):
     ) -> list[AuditLogRecord]:
         return fetch_all(
             f"""
-            SELECT ts, user_id, action, details, request_id::TEXT
+            SELECT ts, user_id, action, job_id, details, request_id::TEXT
             FROM {EVENT_LOG_TABLE}
             ORDER BY ts DESC
             LIMIT %s

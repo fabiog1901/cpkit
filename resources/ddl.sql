@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS cpkit.event_log (
     ts TIMESTAMPTZ NOT NULL DEFAULT now():::TIMESTAMPTZ,
     user_id STRING NOT NULL,
     action STRING NOT NULL,
+    job_id INT8 NULL,
     details JSONB NULL,
     request_id UUID NULL,
     CONSTRAINT pk PRIMARY KEY (ts ASC, user_id ASC)
@@ -59,6 +60,8 @@ CREATE TABLE IF NOT EXISTS cpkit.event_log (
     ttl_expiration_expression = e'(ts::TIMESTAMPTZ + \'90 days\')',
     ttl_job_cron = '@daily'
 );
+
+ALTER TABLE cpkit.event_log ADD COLUMN IF NOT EXISTS job_id INT8 NULL;
 
 CREATE TABLE IF NOT EXISTS cpkit.settings (
     key STRING NOT NULL,

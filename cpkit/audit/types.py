@@ -29,6 +29,7 @@ class AuditLogRecord(BaseModel):
     ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     user_id: str
     action: str
+    job_id: int | None = None
     details: dict[str, Any] | None = None
     request_id: str | None = None
 

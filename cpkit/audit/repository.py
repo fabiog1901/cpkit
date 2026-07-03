@@ -20,7 +20,7 @@ class AuditEventsRepositoryMixin:
         if is_admin:
             return fetch_all(
                 f"""
-                SELECT ts, user_id, action, details, request_id::TEXT
+                SELECT ts, user_id, action, job_id, details, request_id::TEXT
                 FROM {EVENT_LOG_TABLE}
                 ORDER BY ts DESC
                 LIMIT %s
@@ -47,13 +47,14 @@ class AuditEventsRepositoryMixin:
         execute_stmt(
             f"""
             INSERT INTO {EVENT_LOG_TABLE}
-                (ts, user_id, action, details, request_id)
-            VALUES (%s, %s, %s, %s, %s)
+                (ts, user_id, action, job_id, details, request_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
             (
                 log_msg.ts,
                 log_msg.user_id,
                 log_msg.action,
+                log_msg.job_id,
                 log_msg.details,
                 log_msg.request_id,
             ),
