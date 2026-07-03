@@ -2,6 +2,7 @@
 
 import logging
 from collections.abc import Callable
+from contextvars import ContextVar
 from enum import StrEnum
 from typing import Any, Protocol
 
@@ -11,6 +12,7 @@ from .types import AuditLogRecord
 
 logger = logging.getLogger(__name__)
 _audit_record_factory: Callable[..., Any] | None = None
+job_id_ctx: ContextVar[int | None] = ContextVar("job_id", default=None)
 
 
 class AuditRecordWriter(Protocol):
@@ -141,10 +143,11 @@ def build_audit_log_record(
 ) -> AuditLogRecord:
     """Build the standard cpkit audit log record."""
     effective_metadata = metadata if metadata is not None else default_metadata
+    job_id = _metadata_job_id(effective_metadata)
     return AuditLogRecord(
         user_id=actor_id,
         action=event_type,
-        job_id=_metadata_job_id(effective_metadata),
+        job_id=job_id if job_id is not None else job_id_ctx.get(),
         details=effective_metadata,
         request_id=request_id,
     )

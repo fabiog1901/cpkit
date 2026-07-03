@@ -8,6 +8,8 @@ from typing import Any
 
 from psycopg.rows import class_row
 
+from cpkit.audit import job_id_ctx
+
 from .maintenance import FAIL_ZOMBIE_JOBS_MESSAGE_TYPE, create_fail_zombie_jobs_handler
 from .repository import QUEUE_TABLE
 from .types import QueueMessage
@@ -124,6 +126,7 @@ async def run_queue_worker(
                                 message.msg_type,
                             )
 
+                            job_id_token = _set_current_job_id(message)
                             try:
                                 handler = _resolve_handler(
                                     message,
@@ -150,6 +153,8 @@ async def run_queue_worker(
                                             message.msg_id,
                                         )
                             finally:
+                                if job_id_token is not None:
+                                    job_id_ctx.reset(job_id_token)
                                 cur.execute(
                                     f"DELETE FROM {QUEUE_TABLE} WHERE msg_id = %s;",
                                     (message.msg_id,),
@@ -169,6 +174,12 @@ def _claim_due_message(cur) -> QueueMessage | None:
         LIMIT 1
         FOR UPDATE SKIP LOCKED
         """).fetchone()
+
+
+def _set_current_job_id(message: QueueMessage):
+    if message.msg_type == FAIL_ZOMBIE_JOBS_MESSAGE_TYPE:
+        return None
+    return job_id_ctx.set(message.msg_id)
 
 
 def _resolve_handler(
