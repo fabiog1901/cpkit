@@ -1,7 +1,6 @@
 """Generic queue worker loop."""
 
 import asyncio
-import datetime as dt
 import logging
 import random
 from collections.abc import Callable, Mapping
@@ -37,12 +36,10 @@ def create_queue_worker(
     }
 
     def record_failure(message: QueueMessage, err: Exception) -> None:
-        _record_job_failure(
-            get_repo(),
-            message,
-            err,
-            failed_status=failed_status,
-        )
+        try:
+            get_repo().update_job(message.msg_id, failed_status)
+        except Exception:
+            logger.exception("Unable to mark job %s as failed", message.msg_id)
         if handle_failure is not None:
             handle_failure(message, err)
 
@@ -172,29 +169,6 @@ def _claim_due_message(cur) -> QueueMessage | None:
         LIMIT 1
         FOR UPDATE SKIP LOCKED
         """).fetchone()
-
-
-def _record_job_failure(
-    repo: Any,
-    message: QueueMessage,
-    err: Exception,
-    *,
-    failed_status: str,
-) -> None:
-    try:
-        repo.update_job(message.msg_id, failed_status)
-    except Exception:
-        logger.exception("Unable to mark job %s as failed", message.msg_id)
-    try:
-        repo.create_task(
-            message.msg_id,
-            0,
-            dt.datetime.now(dt.timezone.utc),
-            "FAILURE",
-            str(err),
-        )
-    except Exception:
-        logger.exception("Unable to record failure task for job %s", message.msg_id)
 
 
 def _resolve_handler(
