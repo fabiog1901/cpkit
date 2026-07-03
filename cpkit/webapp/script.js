@@ -719,6 +719,7 @@ window.app = function () {
         job?.job_id,
         job?.job_type,
         job?.status,
+        job?.playbook_version,
         job?.created_by,
         job?.created_at,
         job?.updated_at,
@@ -726,14 +727,14 @@ window.app = function () {
     },
 
     jobsRowText(job) {
-      return this.tableRowText(job, [0, 1, 2, 3, 4, 5], this.jobsCellText, [this.jobsDescriptionText(job)]);
+      return this.tableRowText(job, [0, 1, 2, 3, 4, 5, 6], this.jobsCellText, [this.jobsDescriptionText(job)]);
     },
 
     sortJobs(index) {
       this.toggleTableSort(index, {
         sortIndexKey: "jobsSortIndex",
         sortDirKey: "jobsSortDir",
-        defaultDirForIndex: (idx) => (idx === 0 || idx >= 4 ? "desc" : "asc"),
+        defaultDirForIndex: (idx) => (idx === 0 || idx >= 5 ? "desc" : "asc"),
         apply: () => this.applyJobsFilterSort(),
       });
     },

@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS cpkit.jobs (
     job_id INT8 NOT NULL,
     job_type STRING NULL,
     status STRING NULL,
+    playbook_version STRING NULL,
     description JSONB NULL,
     created_at TIMESTAMPTZ NULL DEFAULT now():::TIMESTAMPTZ,
     created_by STRING NULL,
@@ -33,6 +34,8 @@ CREATE TABLE IF NOT EXISTS cpkit.jobs (
     ttl_expiration_expression = e'(updated_at::TIMESTAMPTZ + \'90 days\'::INTERVAL)',
     ttl_job_cron = '@daily'
 );
+
+ALTER TABLE cpkit.jobs ADD COLUMN IF NOT EXISTS playbook_version STRING NULL;
 
 CREATE TABLE IF NOT EXISTS cpkit.tasks (
     job_id INT8 NOT NULL,

@@ -41,6 +41,7 @@ class Job(BaseModel):
     job_id: int
     job_type: str
     status: str | None = None
+    playbook_version: str | None = None
     description: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     created_by: str | None = None

@@ -51,6 +51,10 @@ class QueueJobRepositoryMixin(QueueRepositoryMixin):
         created_by: str,
     ) -> JobID:
         payload_value = _payload_value(payload)
+        playbook_version = payload_value.get("playbook_version")
+        job_description = {
+            key: value for key, value in payload_value.items() if key != "playbook_version"
+        }
         command_type_value = _message_type_value(command_type)
         return fetch_one(
             f"""
@@ -63,9 +67,9 @@ class QueueJobRepositoryMixin(QueueRepositoryMixin):
                 RETURNING msg_id
             )
             INSERT INTO {JOBS_TABLE}
-                (job_id, job_type, status, description, created_by)
+                (job_id, job_type, status, playbook_version, description, created_by)
             VALUES
-                ((select msg_id from create_new_job), %s, %s, %s, %s)
+                ((select msg_id from create_new_job), %s, %s, %s, %s, %s)
             RETURNING job_id AS job_id
             """,
             (
@@ -74,7 +78,8 @@ class QueueJobRepositoryMixin(QueueRepositoryMixin):
                 created_by,
                 command_type_value,
                 "QUEUED",
-                payload_value,
+                str(playbook_version) if playbook_version is not None else None,
+                job_description,
                 created_by,
             ),
             JobID,
@@ -238,6 +243,16 @@ class JobsRepositoryMixin:
             WHERE job_id = %s
             """,
             (_message_type_value(status), job_id),
+        )
+
+    def set_job_playbook_version(self, job_id: int, playbook_version: str) -> None:
+        execute_stmt(
+            f"""
+            UPDATE {JOBS_TABLE}
+            SET playbook_version = %s
+            WHERE job_id = %s
+            """,
+            (playbook_version, job_id),
         )
 
     def fail_zombie_jobs(self) -> list[IntID]:

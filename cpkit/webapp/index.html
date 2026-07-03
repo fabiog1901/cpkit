@@ -294,9 +294,10 @@
                     <th data-sort="number" :class="jobsSortClass(0)" @click="sortJobs(0)">Job ID</th>
                     <th data-sort="string" :class="jobsSortClass(1)" @click="sortJobs(1)">Type</th>
                     <th data-sort="string" :class="jobsSortClass(2)" @click="sortJobs(2)">Status</th>
-                    <th data-sort="string" :class="jobsSortClass(3)" @click="sortJobs(3)">Created By</th>
-                    <th data-sort="date" :class="jobsSortClass(4)" @click="sortJobs(4)">Created (UTC)</th>
-                    <th data-sort="date" :class="jobsSortClass(5)" @click="sortJobs(5)">Updated (UTC)</th>
+                    <th data-sort="string" :class="jobsSortClass(3)" @click="sortJobs(3)">Playbook Version</th>
+                    <th data-sort="string" :class="jobsSortClass(4)" @click="sortJobs(4)">Created By</th>
+                    <th data-sort="date" :class="jobsSortClass(5)" @click="sortJobs(5)">Created (UTC)</th>
+                    <th data-sort="date" :class="jobsSortClass(6)" @click="sortJobs(6)">Updated (UTC)</th>
                     <th>Description</th>
                   </tr>
                 </thead>
@@ -315,6 +316,7 @@
                           <span x-text="String(job.status || 'unknown').toUpperCase()"></span>
                         </span>
                       </td>
+                      <td><span class="service-pill" x-text="job.playbook_version || '-'"></span></td>
                       <td><span x-text="job.created_by || '-'"></span></td>
                       <td><span x-text="toUtcStringMaybe(job.created_at)"></span></td>
                       <td><span x-text="toUtcStringMaybe(job.updated_at)"></span></td>
@@ -324,7 +326,7 @@
                     </tr>
                   </template>
                   <tr x-show="!jobsLoading.list && jobsVisibleRows.length === 0">
-                    <td colspan="7" class="empty-cell">No results.</td>
+                    <td colspan="8" class="empty-cell">No results.</td>
                   </tr>
                 </tbody>
               </table>
@@ -383,6 +385,10 @@
                   <div class="job-fact">
                     <span class="job-fact-label">Type</span>
                     <span class="service-pill" x-text="selectedJobDetails?.job?.job_type || '-'"></span>
+                  </div>
+                  <div class="job-fact">
+                    <span class="job-fact-label">Playbook Version</span>
+                    <span class="service-pill" x-text="selectedJobDetails?.job?.playbook_version || '-'"></span>
                   </div>
                   <div class="job-fact">
                     <span class="job-fact-label">Created By</span>

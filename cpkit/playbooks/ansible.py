@@ -133,6 +133,7 @@ class AnsibleRunner:
         loaded_playbook: LoadedPlaybook | None = None
         try:
             loaded_playbook = self._load_playbook(playbook_name)
+            self.repo.set_job_playbook_version(self.job_id, loaded_playbook.version)
 
             shutil.rmtree(job_dir, ignore_errors=True)
             os.makedirs(job_dir, exist_ok=True)
@@ -246,6 +247,7 @@ class LiteAnsibleRunner:
         loaded_playbook: LoadedPlaybook | None = None
         try:
             loaded_playbook = self._load_playbook(playbook_name)
+            self.repo.set_job_playbook_version(self.job_id, loaded_playbook.version)
 
             shutil.rmtree(job_dir, ignore_errors=True)
             os.makedirs(job_dir, exist_ok=True)
