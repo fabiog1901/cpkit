@@ -60,12 +60,14 @@ class AuditRecorder:
         record_factory: Callable[..., Any],
         *,
         request_id_provider: Callable[[], str | None] | None = None,
+        job_id_provider: Callable[[], int | None] | None = None,
         method_name: str = "log_event",
         event_logger: logging.Logger | None = None,
     ) -> None:
         self.writer = writer
         self.record_factory = record_factory
         self.request_id_provider = request_id_provider
+        self.job_id_provider = job_id_provider
         self.method_name = method_name
         self.logger = event_logger or logger
 
@@ -76,6 +78,7 @@ class AuditRecorder:
         actor_id: str,
         metadata: dict[str, Any] | None = None,
         request_id: str | None = None,
+        job_id: int | None = None,
     ) -> Any:
         """Create and write an application-owned audit record."""
         record = self._build_record(
@@ -83,6 +86,7 @@ class AuditRecorder:
             actor_id=actor_id,
             metadata=metadata,
             request_id=request_id,
+            job_id=job_id,
         )
         return write_audit_record(
             self.writer,
@@ -97,6 +101,7 @@ class AuditRecorder:
         actor_id: str,
         metadata: dict[str, Any] | None = None,
         request_id: str | None = None,
+        job_id: int | None = None,
     ) -> bool:
         """Create and write an audit record without failing the caller."""
         record = self._build_record(
@@ -104,6 +109,7 @@ class AuditRecorder:
             actor_id=actor_id,
             metadata=metadata,
             request_id=request_id,
+            job_id=job_id,
         )
         return write_audit_record_best_effort(
             self.writer,
@@ -120,16 +126,22 @@ class AuditRecorder:
         actor_id: str,
         metadata: dict[str, Any] | None,
         request_id: str | None,
+        job_id: int | None,
     ) -> Any:
         effective_request_id = request_id
         if effective_request_id is None and self.request_id_provider is not None:
             effective_request_id = self.request_id_provider()
+
+        effective_job_id = job_id
+        if effective_job_id is None and self.job_id_provider is not None:
+            effective_job_id = self.job_id_provider()
 
         return self.record_factory(
             actor_id=actor_id,
             event_type=str(event_type),
             metadata=metadata,
             request_id=effective_request_id,
+            job_id=effective_job_id,
         )
 
 
@@ -139,30 +151,18 @@ def build_audit_log_record(
     event_type: str,
     metadata: dict[str, Any] | None,
     request_id: str | None,
+    job_id: int | None,
     default_metadata: dict[str, Any] | None = None,
 ) -> AuditLogRecord:
     """Build the standard cpkit audit log record."""
     effective_metadata = metadata if metadata is not None else default_metadata
-    job_id = _metadata_job_id(effective_metadata)
     return AuditLogRecord(
         user_id=actor_id,
         action=event_type,
-        job_id=job_id if job_id is not None else job_id_ctx.get(),
+        job_id=job_id,
         details=effective_metadata,
         request_id=request_id,
     )
-
-
-def _metadata_job_id(metadata: dict[str, Any] | None) -> int | None:
-    if not metadata:
-        return None
-    job_id = metadata.get("job_id")
-    if job_id is None:
-        return None
-    try:
-        return int(job_id)
-    except (TypeError, ValueError):
-        return None
 
 
 def configure_audit_logging(record_factory: Callable[..., Any]) -> None:
@@ -175,6 +175,7 @@ def create_audit_event_hook(
     record_factory: Callable[..., Any],
     *,
     request_id_provider: Callable[[], str | None] = request_id_ctx.get,
+    job_id_provider: Callable[[], int | None] = job_id_ctx.get,
     best_effort: bool = True,
     event_logger: logging.Logger | None = None,
 ) -> Callable[[Any, str, str | StrEnum, dict[str, Any] | None], None]:
@@ -186,39 +187,28 @@ def create_audit_event_hook(
         action: str | StrEnum,
         details: dict[str, Any] | None = None,
     ) -> None:
-        effective_details = _with_context_job_id(details)
         recorder = AuditRecorder(
             repo,
             record_factory,
             request_id_provider=request_id_provider,
+            job_id_provider=job_id_provider,
             event_logger=event_logger,
         )
         if best_effort:
             recorder.emit_best_effort(
                 action,
                 actor_id=actor_id,
-                metadata=effective_details,
+                metadata=details,
             )
             return
 
         recorder.emit(
             action,
             actor_id=actor_id,
-            metadata=effective_details,
+            metadata=details,
         )
 
     return emit_audit_event
-
-
-def _with_context_job_id(details: dict[str, Any] | None) -> dict[str, Any] | None:
-    job_id = job_id_ctx.get()
-    if job_id is None:
-        return details
-    if details is None:
-        return {"job_id": job_id}
-    if details.get("job_id") is not None:
-        return details
-    return details | {"job_id": job_id}
 
 
 def log_event(
