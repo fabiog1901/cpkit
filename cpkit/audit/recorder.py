@@ -186,6 +186,7 @@ def create_audit_event_hook(
         action: str | StrEnum,
         details: dict[str, Any] | None = None,
     ) -> None:
+        effective_details = _with_context_job_id(details)
         recorder = AuditRecorder(
             repo,
             record_factory,
@@ -196,17 +197,28 @@ def create_audit_event_hook(
             recorder.emit_best_effort(
                 action,
                 actor_id=actor_id,
-                metadata=details,
+                metadata=effective_details,
             )
             return
 
         recorder.emit(
             action,
             actor_id=actor_id,
-            metadata=details,
+            metadata=effective_details,
         )
 
     return emit_audit_event
+
+
+def _with_context_job_id(details: dict[str, Any] | None) -> dict[str, Any] | None:
+    job_id = job_id_ctx.get()
+    if job_id is None:
+        return details
+    if details is None:
+        return {"job_id": job_id}
+    if details.get("job_id") is not None:
+        return details
+    return details | {"job_id": job_id}
 
 
 def log_event(
