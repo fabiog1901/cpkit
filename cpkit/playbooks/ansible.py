@@ -13,7 +13,6 @@ from typing import Any
 import ansible_runner
 import yaml
 
-from cpkit.audit import log_event
 from cpkit.time import STRFTIME
 
 logger = logging.getLogger(__name__)
@@ -55,7 +54,6 @@ class AnsibleRunner:
         completed_status: Any = "COMPLETED",
         failed_status: Any = "FAILED",
         job_dir_root: str = "/tmp",
-        audit_actor: str | None = None,
     ):
         self.data: dict[str, Any] = {}
         self.repo = repo
@@ -65,7 +63,6 @@ class AnsibleRunner:
         self.completed_status = completed_status
         self.failed_status = failed_status
         self.job_dir_root = job_dir_root
-        self.audit_actor = audit_actor
 
     def status_handler(self, status, runner_config):
         return
@@ -132,7 +129,7 @@ class AnsibleRunner:
         self.counter += 1
 
     def launch_runner(self, playbook_name: str, extra_vars: dict) -> RunnerResult:
-        job_dir = self._job_dir()
+        job_dir = os.path.join(self.job_dir_root, f"job-{self.job_id}")
         loaded_playbook: LoadedPlaybook | None = None
         try:
             loaded_playbook = self._load_playbook(playbook_name)
@@ -140,20 +137,6 @@ class AnsibleRunner:
             shutil.rmtree(job_dir, ignore_errors=True)
             os.makedirs(job_dir, exist_ok=True)
             self.repo.update_job(self.job_id, self.running_status)
-            self.repo.create_task(
-                self.job_id,
-                self.counter,
-                dt.datetime.now(dt.timezone.utc),
-                "PLAYBOOK_STARTED",
-                json.dumps(
-                    {
-                        "playbook_name": playbook_name,
-                        "playbook_version": loaded_playbook.version,
-                    },
-                ),
-            )
-            self.counter += 1
-            self._emit_playbook_run_event(playbook_name, loaded_playbook.version)
 
             thread, runner = ansible_runner.run_async(
                 quiet=False,
@@ -165,7 +148,7 @@ class AnsibleRunner:
                 status_handler=self.status_handler,
             )
         except Exception as err:
-            self._mark_failed()
+            self.repo.update_job(self.job_id, self.failed_status)
             self.repo.create_task(
                 self.job_id,
                 self.counter,
@@ -199,9 +182,9 @@ class AnsibleRunner:
             if runner.status == "successful":
                 self.repo.update_job(self.job_id, self.completed_status)
             else:
-                self._mark_failed()
+                self.repo.update_job(self.job_id, self.failed_status)
         except Exception:
-            self._mark_failed()
+            self.repo.update_job(self.job_id, self.failed_status)
             logger.exception(
                 "Error while monitoring playbook '%s' for job %s",
                 playbook_name,
@@ -212,7 +195,7 @@ class AnsibleRunner:
                 self.data,
                 self.counter,
                 playbook_name,
-                loaded_playbook.version if loaded_playbook else None,
+                loaded_playbook.version,
             )
         finally:
             shutil.rmtree(job_dir, ignore_errors=True)
@@ -222,11 +205,8 @@ class AnsibleRunner:
             self.data,
             self.counter,
             playbook_name,
-            loaded_playbook.version if loaded_playbook else None,
+            loaded_playbook.version,
         )
-
-    def _job_dir(self) -> str:
-        return os.path.join(self.job_dir_root, f"job-{self.job_id}")
 
     def _load_playbook(self, playbook_name: str) -> "LoadedPlaybook":
         playbook = self.repo.get_default_playbook(playbook_name)
@@ -236,31 +216,6 @@ class AnsibleRunner:
             content=gzip.decompress(playbook.content).decode(),
             version=playbook.version.strftime(STRFTIME),
         )
-
-    def _mark_failed(self) -> None:
-        self.repo.update_job(self.job_id, self.failed_status)
-
-    def _emit_playbook_run_event(
-        self, playbook_name: str, playbook_version: str
-    ) -> None:
-        if not self.audit_actor:
-            return
-        try:
-            log_event(
-                self.repo,
-                self.audit_actor,
-                "PLAYBOOK_RUN_STARTED",
-                {
-                    "job_id": self.job_id,
-                    "playbook_name": playbook_name,
-                    "playbook_version": playbook_version,
-                },
-            )
-        except Exception:
-            logger.exception(
-                "Failed to write playbook run audit event for job %s",
-                self.job_id,
-            )
 
 
 class LiteAnsibleRunner:
@@ -272,13 +227,11 @@ class LiteAnsibleRunner:
         repo: Any,
         job_id: int,
         job_dir_root: str = "/tmp",
-        audit_actor: str | None = None,
     ):
         self.data: dict[str, Any] = {}
         self.repo = repo
         self.job_id = job_id
         self.job_dir_root = job_dir_root
-        self.audit_actor = audit_actor
 
     def status_handler(self, status, runner_config):
         return
@@ -293,7 +246,6 @@ class LiteAnsibleRunner:
         loaded_playbook: LoadedPlaybook | None = None
         try:
             loaded_playbook = self._load_playbook(playbook_name)
-            self._emit_playbook_run_event(playbook_name, loaded_playbook.version)
 
             shutil.rmtree(job_dir, ignore_errors=True)
             os.makedirs(job_dir, exist_ok=True)
@@ -330,7 +282,7 @@ class LiteAnsibleRunner:
             runner.status,
             self.data,
             playbook_name,
-            loaded_playbook.version if loaded_playbook else None,
+            loaded_playbook.version,
         )
 
     def _load_playbook(self, playbook_name: str) -> "LoadedPlaybook":
@@ -341,28 +293,6 @@ class LiteAnsibleRunner:
             content=gzip.decompress(playbook.content).decode(),
             version=playbook.version.strftime(STRFTIME),
         )
-
-    def _emit_playbook_run_event(
-        self, playbook_name: str, playbook_version: str
-    ) -> None:
-        if not self.audit_actor:
-            return
-        try:
-            log_event(
-                self.repo,
-                self.audit_actor,
-                "PLAYBOOK_RUN_STARTED",
-                {
-                    "job_id": self.job_id,
-                    "playbook_name": playbook_name,
-                    "playbook_version": playbook_version,
-                },
-            )
-        except Exception:
-            logger.exception(
-                "Failed to write playbook run audit event for job %s",
-                self.job_id,
-            )
 
 
 def run_playbook(
@@ -376,7 +306,6 @@ def run_playbook(
     completed_status: Any = "COMPLETED",
     failed_status: Any = "FAILED",
     job_dir_root: str = "/tmp",
-    audit_actor: str | None = None,
 ) -> RunnerResult:
     """Run a stored playbook for a framework job."""
     return AnsibleRunner(
@@ -387,7 +316,6 @@ def run_playbook(
         completed_status=completed_status,
         failed_status=failed_status,
         job_dir_root=job_dir_root,
-        audit_actor=audit_actor,
     ).launch_runner(playbook_name, extra_vars)
 
 
@@ -398,12 +326,10 @@ def run_playbook_lite(
     playbook_name: str,
     extra_vars: dict,
     job_dir_root: str = "/tmp",
-    audit_actor: str | None = None,
 ) -> LiteRunnerResult:
     """Run a stored playbook and capture only its Data result."""
     return LiteAnsibleRunner(
         repo=repo,
         job_id=job_id,
         job_dir_root=job_dir_root,
-        audit_actor=audit_actor,
     ).launch_runner(playbook_name, extra_vars)
