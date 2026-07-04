@@ -871,11 +871,6 @@ window.app = function () {
       const preferred = [
         { match: ["LOGIN", "_LOGIN"], style: palette[0] },
         { match: ["LOGOUT", "_LOGOUT"], style: palette[5] },
-        { match: ["ALLOCATE", "ALLOCATION"], style: palette[1] },
-        { match: ["DEALLOCATE", "DEALLOCATION"], style: palette[3] },
-        { match: ["INIT", "CREATE"], style: palette[2] },
-        { match: ["DECOMM", "DELETE", "REMOVE"], style: palette[7] },
-        { match: ["UPDATE", "PATCH"], style: palette[4] },
       ];
       for (const entry of preferred) {
         if (entry.match.some((token) => name.includes(token))) return entry.style;
