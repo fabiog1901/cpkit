@@ -136,6 +136,13 @@ exactly. If an app needs dynamic hash paths, such as `/app/items/<id>`, add a
 `window.location.hash` or a helper method. API calls should be relative to
 cpkit's `/api` prefix by using the shell-provided `apiFetch()` helper.
 
+Timestamp values should use the shell formatter instead of rendering raw ISO
+strings. Inside extension templates and methods, call
+`this.formatDateTime(value)` to display UTC timestamps as
+`yyyy-mm-dd hh:mm:ss`. Plain extension JavaScript can call
+`window.cpkitFormatDateTime(value)` with the same behavior. Pass
+`{ utc: false }` only when the app intentionally wants browser-local time.
+
 Use `navItems` for primary topbar pages. Use `adminItems` for application
 pages that should appear inside cpkit's Admin surfaces. Each `adminItems`
 entry must reference a key in `routes`. Admin routes should normally use an

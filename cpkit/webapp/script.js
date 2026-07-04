@@ -1,3 +1,29 @@
+window.cpkitFormatDateTime = function (value, { utc = true, fallback = "-" } = {}) {
+  if (!value) return fallback;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const parts = utc
+    ? [
+        date.getUTCFullYear(),
+        date.getUTCMonth() + 1,
+        date.getUTCDate(),
+        date.getUTCHours(),
+        date.getUTCMinutes(),
+        date.getUTCSeconds(),
+      ]
+    : [
+        date.getFullYear(),
+        date.getMonth() + 1,
+        date.getDate(),
+        date.getHours(),
+        date.getMinutes(),
+        date.getSeconds(),
+      ];
+  const [year, month, day, hour, minute, second] = parts;
+  const pad = (part) => String(part).padStart(2, "0");
+  return `${year}-${pad(month)}-${pad(day)} ${pad(hour)}:${pad(minute)}:${pad(second)}`;
+};
+
 window.app = function () {
   const extension = window.cpkitWebappExtension || {};
   return {
@@ -1467,14 +1493,15 @@ window.app = function () {
     },
 
     toUtcStringMaybe(value) {
-      if (!value) return "-";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return String(value);
-      return date.toISOString().replace(".000Z", "Z");
+      return this.formatDateTime(value);
+    },
+
+    formatDateTime(value, options = {}) {
+      return window.cpkitFormatDateTime(value, options);
     },
 
     utcNowString() {
-      return new Date().toISOString().replace(".000Z", "Z");
+      return this.formatDateTime(new Date());
     },
 
     relativeTimeFromNow(value) {

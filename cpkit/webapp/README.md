@@ -62,5 +62,10 @@ Common extension fields include:
 - `methods`: Extra Alpine methods merged into the shell.
 - Dashboard cards rendered through the extension dashboard template/card APIs.
 
+Shared shell helpers are available to extension methods. For timestamps, use
+`this.formatDateTime(value)` in Alpine methods/templates or
+`window.cpkitFormatDateTime(value)` from plain extension JavaScript. The default
+output is UTC `yyyy-mm-dd hh:mm:ss`.
+
 For the full extension guide, see
 `resources/webapp_extension_guide.md`.
