@@ -526,7 +526,15 @@
                         <span class="service-pill event-action-pill" :style="actionPillStyle(event.action)"
                           x-text="event.action || '-'"></span>
                       </td>
-                      <td><span x-text="event.job_id === null || event.job_id === undefined ? '-' : event.job_id"></span></td>
+                      <td>
+                        <a href="#" class="dashboard-link"
+                          x-show="event.job_id !== null && event.job_id !== undefined"
+                          :href="`#/jobs/${encodeURIComponent(event.job_id)}`"
+                          @click.prevent="openJob(event.job_id)">
+                          <span class="ip-pill clickable" x-text="event.job_id"></span>
+                        </a>
+                        <span x-show="event.job_id === null || event.job_id === undefined">-</span>
+                      </td>
                       <td class="events-details-cell">
                         <pre class="events-yaml" x-text="eventsDetailsText(event)"></pre>
                       </td>
