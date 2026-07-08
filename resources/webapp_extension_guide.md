@@ -24,7 +24,7 @@ and browser logic through extension assets.
 
 ## Expected App Structure
 
-The app should provide a small static webapp directory:
+The app must provide a small static webapp directory:
 
 ```text
 webapp/
@@ -52,9 +52,29 @@ app = create_cpkit_app(
 
 cpkit mounts the app webapp directory at `/app`.
 
+## App Extension Checklist
+
+Read this checklist before migrating or editing an app webapp:
+
+- Keep cpkit's template webapp as the shell.
+- Create exactly these app-owned extension files:
+  - `webapp/extension.html`
+  - `webapp/extension.css`
+  - `webapp/extension.js`
+- Register the app once with `window.cpkitWebappExtension`.
+- Put only app-specific markup in `extension.html`.
+- Put only app-specific state and methods in `extension.js`.
+- Put only app-specific styles in `extension.css`.
+- Use cpkit hash routes for app pages.
+- Use shell helpers such as `apiFetch()`, `showNotice()`, and
+  `parseHashRoute()` instead of copying shell behavior.
+- Keep large database IDs as strings in JSON and JavaScript.
+- Run `node --check webapp/extension.js` after editing.
+
 ## Extension JavaScript Contract
 
-`extension.js` registers the application extension on `window`:
+`extension.js` registers the application extension on `window`. This is the
+single app registration object. Do not define `window.app`.
 
 ```javascript
 window.cpkitWebappExtension = {
@@ -130,6 +150,17 @@ window.cpkitWebappExtension = {
 };
 ```
 
+Supported top-level keys:
+
+- `htmlPath`: Path to app markup, normally `/app/extension.html`.
+- `navItems`: App-owned primary navigation entries.
+- `adminItems`: App-owned admin landing-page entries.
+- `dashboardItems`: Simple app metric cards on cpkit's Dashboard.
+- `dashboardEnsure`: Name of an extension method that loads app dashboard data.
+- `routes`: App hash-route definitions keyed by view name.
+- `state`: App-owned Alpine state merged into the cpkit shell state.
+- `methods`: App-owned Alpine methods merged into the cpkit shell methods.
+
 Route `path` values are hash routes in the cpkit shell. Static routes match
 exactly. If an app needs dynamic hash paths, such as `/app/items/<id>`, add a
 `match(path)` function to the route and parse the selected ID from
@@ -167,6 +198,60 @@ cpkit unwraps that one level and treats each child in the grid as its own card.
 Add `data-dashboard-key` to template cards when you want saved ordering to
 survive title or markup changes. Use `dashboardEnsure` to name an extension
 method that should refresh application dashboard data when the Dashboard loads.
+
+## Shell-Provided Helpers
+
+Extension methods run on the same Alpine component as the cpkit shell. Use these
+helpers from `methods` with `this.<helper>()`:
+
+- `apiFetch(path, options)`: authenticated JSON API calls under cpkit's API
+  prefix.
+- `showNotice(message, options)`: display a cpkit banner that auto-dismisses.
+  Pass `{ jobId }` to include an "Open Job" link, or `{ timeoutMs: 0 }` to keep
+  the notice visible until cleared.
+- `clearNotice()`: clear the current cpkit banner and linked job id.
+- `routeForView(view)`: return the shell hash route for a registered view.
+- `setView(view)`: navigate to a shell or extension view.
+- `parseHashRoute()`: parse `window.location.hash` into `{ path, parts, query }`.
+- `canViewAdmin()`: whether the current user can see admin pages.
+- `hasRole(role)`: whether the current user has a role.
+- `authGroups()`: current user's groups/roles from auth claims.
+- `errorMessage(error, fallback)`: extract a readable error message.
+- `utcNowString()`: current UTC timestamp formatted as `yyyy-mm-dd hh:mm:ss`.
+- `toUtcStringMaybe(value)`: format a timestamp as `yyyy-mm-dd hh:mm:ss`, or
+  return `-`/the original value when empty/invalid.
+- `formatDateTime(value, options)`: timestamp formatter used by
+  `toUtcStringMaybe()`.
+- Ace helpers:
+  - `isAceAvailable()`
+  - `createAceEditor(elementOrRef, options)`
+  - `setAceValue(editor, value)`
+  - `destroyAceEditor(editor)`
+
+Plain extension JavaScript can also call
+`window.cpkitFormatDateTime(value, options)`.
+
+## Extension Rules
+
+Do:
+
+- Use `window.cpkitWebappExtension` as the only app registration point.
+- Use cpkit hash routing for app pages.
+- Use `this.apiFetch()` for app API calls.
+- Use `this.showNotice()` and `this.clearNotice()` for shell notices.
+- Use `this.formatDateTime()`/`this.toUtcStringMaybe()` for timestamps.
+- Treat large DB-generated IDs as strings in JSON and JavaScript.
+
+Do not:
+
+- Do not define `window.app`.
+- Do not copy cpkit's Dashboard, Jobs, Events, Settings, API Keys, Playbooks,
+  login/session UI, topbar, or Admin landing page into the app extension.
+- Do not write directly to shell-owned state such as `viewNotice`,
+  `viewNoticeJobId`, `view`, `authClaims`, or built-in page arrays.
+- Do not add app-specific hardcoded behavior to cpkit-owned pages.
+- Do not add duplicate Ace script tags.
+- Do not rely on JavaScript numbers for large `INT8` database IDs.
 
 ## Optional Ace Editor Helper
 
@@ -281,10 +366,253 @@ branding:
     </div>
   </section>
 </main>
+
+<main class="layout" x-show="view === 'app_item'">
+  <aside class="sidebar">
+    <section>
+      <h2>Item</h2>
+      <div class="metric">
+        <div class="metric-label">Selected ID</div>
+        <div class="metric-value" x-text="selectedTodoId || '-'"></div>
+      </div>
+    </section>
+  </aside>
+
+  <section class="main">
+    <div class="section-head">
+      <div>
+        <h2 x-text="selectedTodo?.title || 'Item'"></h2>
+        <p x-text="selectedTodo?.created_at ? toUtcStringMaybe(selectedTodo.created_at) : '-'"></p>
+      </div>
+    </div>
+  </section>
+</main>
 ```
 
 Use cpkit's existing shell classes where possible, such as `layout`, `sidebar`,
 `main`, `section-head`, `table-wrap`, `btn`, `input`, `notice`, and `modal`.
+
+## Minimal TODO-Style Example
+
+This is a compact example showing a normal TODO page, an admin page, dashboard
+cards, a richer dashboard template, a dynamic route, and a notice with a job
+link.
+
+`webapp/extension.js`:
+
+```javascript
+window.cpkitWebappExtension = {
+  htmlPath: "/app/extension.html",
+  navItems: [{ view: "todos", label: "TODOs" }],
+  adminItems: [
+    {
+      view: "todo_admin",
+      label: "TODO Admin",
+      kicker: "Application",
+      description: "Review TODO app settings.",
+    },
+  ],
+  dashboardEnsure: "ensureTodoDashboard",
+  dashboardItems: [
+    {
+      key: "todo-open-count",
+      label: "Open TODOs",
+      kicker: "TODO",
+      valueKey: "todoStats.open",
+      view: "todos",
+    },
+  ],
+  routes: {
+    todos: {
+      path: "/todos",
+      label: "TODOs",
+      subtitle: "Application TODOs",
+      ensure: "ensureTodos",
+    },
+    todo_admin: {
+      path: "/admin/todos",
+      label: "TODO Admin",
+      subtitle: "TODO administration",
+      adminOnly: true,
+      ensure: "ensureTodoAdmin",
+    },
+    todo_detail: {
+      path: "/todos/detail",
+      label: "TODO Detail",
+      subtitle: "TODO item",
+      ensure: "ensureTodoDetail",
+      match: (path) => /^\/todos\/[^/]+$/.test(path),
+    },
+  },
+  state: {
+    todos: [],
+    todoAdminRows: [],
+    todoStats: { open: 0 },
+    selectedTodoId: "",
+    selectedTodo: null,
+    todoLoading: { list: false, detail: false, export: false },
+  },
+  methods: {
+    async ensureTodoDashboard() {
+      const stats = await this.apiFetch("/todos/stats", { method: "GET" });
+      this.todoStats = { ...this.todoStats, ...(stats || {}) };
+    },
+
+    async ensureTodos() {
+      await this.refreshTodos();
+    },
+
+    async refreshTodos() {
+      this.todoLoading.list = true;
+      try {
+        const rows = await this.apiFetch("/todos/", { method: "GET" });
+        this.todos = Array.isArray(rows) ? rows : [];
+      } catch (error) {
+        this.showNotice(this.errorMessage(error, "Failed to load TODOs."));
+      } finally {
+        this.todoLoading.list = false;
+      }
+    },
+
+    openTodo(todoId) {
+      this.selectedTodoId = String(todoId || "");
+      this.setView("todo_detail");
+    },
+
+    async ensureTodoDetail() {
+      const route = this.parseHashRoute();
+      this.selectedTodoId = String(route.parts[1] || this.selectedTodoId || "");
+      if (!this.selectedTodoId) return;
+      this.todoLoading.detail = true;
+      try {
+        this.selectedTodo = await this.apiFetch(
+          `/todos/${encodeURIComponent(this.selectedTodoId)}`,
+          { method: "GET" },
+        );
+      } catch (error) {
+        this.showNotice(this.errorMessage(error, "Failed to load TODO."));
+      } finally {
+        this.todoLoading.detail = false;
+      }
+    },
+
+    async ensureTodoAdmin() {
+      if (!this.canViewAdmin()) return;
+      const rows = await this.apiFetch("/todos/admin/settings", { method: "GET" });
+      this.todoAdminRows = Array.isArray(rows) ? rows : [];
+    },
+
+    async exportTodos() {
+      this.todoLoading.export = true;
+      try {
+        const result = await this.apiFetch("/todos/export", { method: "POST" });
+        this.showNotice(`Created export job ${result.job_id}.`, {
+          jobId: result.job_id,
+        });
+      } catch (error) {
+        this.showNotice(this.errorMessage(error, "Failed to export TODOs."));
+      } finally {
+        this.todoLoading.export = false;
+      }
+    },
+  },
+};
+```
+
+`webapp/extension.html`:
+
+```html
+<template id="cpkit-extension-dashboard">
+  <article class="dashboard-card" data-dashboard-key="todo-latest">
+    <div class="dashboard-card-head">
+      <div>
+        <div class="dashboard-card-kicker">TODO</div>
+        <h3>Latest TODOs</h3>
+      </div>
+      <button type="button" class="dashboard-link-button" @click="setView('todos')">Open</button>
+    </div>
+    <div class="table-wrap dashboard-table-wrap">
+      <table class="data-table dashboard-table">
+        <tbody>
+          <template x-for="todo in todos.slice(0, 5)" :key="`todo-dashboard-${todo.todo_id}`">
+            <tr>
+              <td>
+                <a href="#" class="dashboard-link" @click.prevent="openTodo(todo.todo_id)">
+                  <span x-text="todo.title"></span>
+                </a>
+              </td>
+              <td x-text="toUtcStringMaybe(todo.updated_at || todo.created_at)"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </article>
+</template>
+
+<main class="layout" x-show="view === 'todos'">
+  <aside class="sidebar">
+    <section>
+      <h2>TODOs</h2>
+      <div class="metric button-stack">
+        <button type="button" class="btn primary" @click="refreshTodos()">Refresh</button>
+        <button type="button" class="btn" @click="exportTodos()">Export</button>
+      </div>
+    </section>
+  </aside>
+
+  <section class="main">
+    <div class="section-head">
+      <div>
+        <h2>TODOs</h2>
+        <p>Application-owned work items.</p>
+      </div>
+    </div>
+    <div class="table-container">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="todo in todos" :key="`todo-${todo.todo_id}`">
+              <tr>
+                <td>
+                  <a href="#" class="dashboard-link" @click.prevent="openTodo(todo.todo_id)">
+                    <span x-text="todo.title"></span>
+                  </a>
+                </td>
+                <td><span class="service-pill" x-text="todo.completed ? 'Done' : 'Open'"></span></td>
+                <td x-text="toUtcStringMaybe(todo.updated_at || todo.created_at)"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<main class="layout" x-show="view === 'todo_admin'">
+  <aside class="sidebar">
+    <section>
+      <h2>TODO Admin</h2>
+    </section>
+  </aside>
+  <section class="main">
+    <div class="section-head">
+      <div>
+        <h2>TODO Admin</h2>
+        <p>Application admin data.</p>
+      </div>
+    </div>
+  </section>
+</main>
+```
 
 ## Extension CSS Contract
 
@@ -323,6 +651,7 @@ broader visual theme.
    - Move app-specific markup into `webapp/extension.html`.
    - Move app-specific state, route registration, and methods into
      `webapp/extension.js`.
+   - Define `window.cpkitWebappExtension`; do not define `window.app`.
    - Register app admin pages in `adminItems` and back them with routes marked
      `adminOnly: true`.
    - Move app-specific styles into `webapp/extension.css`.
@@ -338,6 +667,8 @@ broader visual theme.
    - Keep existing app-specific endpoints unless the migration explicitly
      changes them.
    - Use `this.apiFetch()` from extension methods for authenticated API calls.
+   - Use `this.showNotice()` and `this.clearNotice()` for cpkit notices.
+   - Use `this.toUtcStringMaybe()` or `this.formatDateTime()` for timestamps.
 
 6. Handle database IDs carefully.
    - Database-generated `INT8` IDs can exceed JavaScript's safe integer range.
