@@ -50,6 +50,7 @@ window.app = function () {
     authError: "",
     viewNotice: "",
     viewNoticeJobId: "",
+    viewNoticeTimer: null,
 
     jobs: [],
     jobStats: { total: 0, running: 0, queued: 0, failed: 0 },
@@ -135,7 +136,7 @@ window.app = function () {
       await this.applyRouteFromHash();
       window.addEventListener("hashchange", () => {
         Promise.resolve(this.applyRouteFromHash()).catch((e) => {
-          this.viewNotice = this.errorMessage(e, "Failed to apply route.");
+          this.showNotice(this.errorMessage(e, "Failed to apply route."));
         });
       });
       this.setManagedInterval("_jobsAutoTimer", () => {
@@ -285,6 +286,23 @@ window.app = function () {
       this[key] = setInterval(fn, ms);
     },
 
+    showNotice(message, { jobId = "", timeoutMs = 7000 } = {}) {
+      this.clearNotice();
+      this.viewNotice = message || "";
+      this.viewNoticeJobId = jobId ? String(jobId) : "";
+      if (!this.viewNotice || timeoutMs === 0) return;
+      this.viewNoticeTimer = setTimeout(() => {
+        this.clearNotice();
+      }, timeoutMs);
+    },
+
+    clearNotice() {
+      if (this.viewNoticeTimer) clearTimeout(this.viewNoticeTimer);
+      this.viewNoticeTimer = null;
+      this.viewNotice = "";
+      this.viewNoticeJobId = "";
+    },
+
     async checkAuth() {
       try {
         const res = await fetch("/api/auth/me", { method: "GET" });
@@ -371,6 +389,7 @@ window.app = function () {
         this.handleForbiddenView(next);
         return;
       }
+      if (next !== this.view) this.clearNotice();
       this.view = next;
       await this.ensureViewData();
     },
@@ -429,6 +448,7 @@ window.app = function () {
         this.handleForbiddenView(next);
         return;
       }
+      this.clearNotice();
       this.view = next;
       window.location.hash = this.routeForView(next);
       await this.ensureViewData();
@@ -441,7 +461,7 @@ window.app = function () {
     },
 
     handleForbiddenView(viewName) {
-      this.viewNotice = `${this.viewLabel(viewName)} requires CP_ADMIN.`;
+      this.showNotice(`${this.viewLabel(viewName)} requires CP_ADMIN.`);
       this.view = "dashboard";
       window.location.hash = "/";
     },
@@ -685,7 +705,7 @@ window.app = function () {
         this.applyJobsFilterSort();
         this.refreshJobStats();
       } catch (e) {
-        this.viewNotice = this.errorMessage(e, "Failed to load jobs.");
+        this.showNotice(this.errorMessage(e, "Failed to load jobs."));
       } finally {
         this.jobsLoading.list = false;
       }
@@ -701,6 +721,7 @@ window.app = function () {
     },
 
     openJob(jobId) {
+      this.clearNotice();
       this.selectedJobId = String(jobId || "");
       this.selectedJobDetails = null;
       this.view = "job";
@@ -717,7 +738,7 @@ window.app = function () {
           { method: "GET" },
         );
       } catch (e) {
-        this.viewNotice = this.errorMessage(e, "Failed to load job details.");
+        this.showNotice(this.errorMessage(e, "Failed to load job details."));
       } finally {
         this.jobLoading.details = false;
       }
@@ -731,10 +752,11 @@ window.app = function () {
           `/jobs/${encodeURIComponent(this.selectedJobId)}/reschedule`,
           { method: "POST" },
         );
-        this.viewNotice = `Created replacement job ${data.job_id}.`;
-        this.viewNoticeJobId = String(data.job_id || "");
+        this.showNotice(`Created replacement job ${data.job_id}.`, {
+          jobId: data.job_id,
+        });
       } catch (e) {
-        this.viewNotice = this.errorMessage(e, "Failed to reschedule job.");
+        this.showNotice(this.errorMessage(e, "Failed to reschedule job."));
       } finally {
         this.jobLoading.reschedule = false;
       }
@@ -831,7 +853,7 @@ window.app = function () {
         this.eventsLastUpdatedUtc = this.utcNowString();
         this.applyEventsFilterSort();
       } catch (e) {
-        this.viewNotice = this.errorMessage(e, "Failed to load events.");
+        this.showNotice(this.errorMessage(e, "Failed to load events."));
       } finally {
         this.eventsLoading.list = false;
       }
@@ -924,7 +946,7 @@ window.app = function () {
         this.apiKeysLastUpdatedUtc = this.utcNowString();
         this.applyApiKeysFilterSort();
       } catch (e) {
-        this.viewNotice = this.errorMessage(e, "Failed to load API keys.");
+        this.showNotice(this.errorMessage(e, "Failed to load API keys."));
       } finally {
         this.apiKeysLoading.list = false;
       }
@@ -1007,7 +1029,7 @@ window.app = function () {
         await this.apiFetch(`/admin/api_keys/${encodeURIComponent(accessKey)}`, { method: "DELETE" });
         await this.refreshApiKeys();
       } catch (e) {
-        this.viewNotice = this.errorMessage(e, "Failed to delete API key.");
+        this.showNotice(this.errorMessage(e, "Failed to delete API key."));
       } finally {
         this.apiKeysLoading.delete = false;
       }
