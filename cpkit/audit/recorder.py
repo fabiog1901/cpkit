@@ -165,8 +165,12 @@ def build_audit_log_record(
         action=event_type,
         job_id=job_id,
         details=effective_metadata,
-        request_id=request_id,
+        request_id=_normalize_request_id(request_id),
     )
+
+
+def _normalize_request_id(request_id: str | None) -> str | None:
+    return (str(request_id).strip() or None) if request_id else None
 
 
 def configure_audit_logging(record_factory: Callable[..., Any]) -> None:

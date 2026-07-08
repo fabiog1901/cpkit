@@ -16,7 +16,7 @@ async def request_logging_middleware(
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
     """Attach a request id and log inbound/outbound request details."""
-    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    request_id = _request_id(request.headers.get("X-Request-ID"))
     request_id_ctx.set(request_id)
 
     start_time = time.perf_counter()
@@ -43,3 +43,13 @@ def _client_address(request: Request) -> str:
     if client is None:
         return "-"
     return f"{client.host}:{client.port}"
+
+
+def _request_id(value: str | None) -> str:
+    normalized = (str(value).strip() or None) if value else None
+    if normalized is not None:
+        try:
+            return str(uuid.UUID(normalized))
+        except ValueError:
+            pass
+    return str(uuid.uuid4())
