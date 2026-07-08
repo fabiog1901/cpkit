@@ -5,6 +5,7 @@ import gzip
 import json
 import logging
 import os
+import signal
 import shutil
 import time
 from dataclasses import dataclass
@@ -139,7 +140,7 @@ class AnsibleRunner:
             os.makedirs(job_dir, exist_ok=True)
             self.repo.update_job(self.job_id, self.running_status)
 
-            thread, runner = ansible_runner.run_async(
+            thread, runner = _run_async_preserving_signals(
                 quiet=False,
                 verbosity=1,
                 playbook=yaml.safe_load(loaded_playbook.content),
@@ -180,6 +181,7 @@ class AnsibleRunner:
 
                 time.sleep(1)
 
+            thread.join()
             if runner.status == "successful":
                 self.repo.update_job(self.job_id, self.completed_status)
             else:
@@ -252,7 +254,7 @@ class LiteAnsibleRunner:
             shutil.rmtree(job_dir, ignore_errors=True)
             os.makedirs(job_dir, exist_ok=True)
 
-            thread, runner = ansible_runner.run_async(
+            thread, runner = _run_async_preserving_signals(
                 quiet=False,
                 verbosity=1,
                 playbook=loaded_playbook.content,
@@ -295,6 +297,26 @@ class LiteAnsibleRunner:
             content=gzip.decompress(playbook.content).decode(),
             version=playbook.version.strftime(STRFTIME),
         )
+
+
+def _run_async_preserving_signals(**kwargs):
+    signal_handlers = _capture_signal_handlers()
+    try:
+        return ansible_runner.run_async(**kwargs)
+    finally:
+        _restore_signal_handlers(signal_handlers)
+
+
+def _capture_signal_handlers():
+    return {
+        signal.SIGINT: signal.getsignal(signal.SIGINT),
+        signal.SIGTERM: signal.getsignal(signal.SIGTERM),
+    }
+
+
+def _restore_signal_handlers(signal_handlers) -> None:
+    for signal_number, handler in signal_handlers.items():
+        signal.signal(signal_number, handler)
 
 
 def run_playbook(
