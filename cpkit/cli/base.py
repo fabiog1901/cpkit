@@ -7,7 +7,9 @@ import tomllib
 from collections.abc import Sequence
 from pathlib import Path
 
-from .migration import apply_sql_file, check_database, check_table
+from cpkit.resources import cpkit_ddl_path
+
+from .schema import apply_sql_file, check_database, check_table
 from .server import serve_uvicorn
 
 
@@ -87,20 +89,20 @@ class ApplicationCLI:
         args = self._parser().parse_args(argv)
         return int(args.handler(args) or 0)
 
-    def migrate(self, _args: argparse.Namespace) -> int:
-        """Apply cpkit schema and application schema SQL."""
+    def init(self, _args: argparse.Namespace) -> int:
+        """Initialize cpkit and application schemas from DDL files."""
         db_url = self._db_url()
         cpkit_ddl = self._cpkit_ddl_path()
         if cpkit_ddl is not None:
-            print(f"Applying cpkit migration: {cpkit_ddl}")
+            print(f"Applying cpkit schema: {cpkit_ddl}")
             apply_sql_file(db_url, cpkit_ddl)
 
         for path in self._app_ddl_paths():
-            print(f"Applying {self.app_name} migration: {path}")
+            print(f"Applying {self.app_name} schema: {path}")
             apply_sql_file(db_url, path)
 
         self._check_schemas(db_url)
-        print("Migration complete.")
+        print("Initialization complete.")
         return 0
 
     def serve(self, args: argparse.Namespace) -> int:
@@ -118,8 +120,8 @@ class ApplicationCLI:
         parser = argparse.ArgumentParser(prog=self.app_name)
         subparsers = parser.add_subparsers(dest="command", required=True)
 
-        migrate = subparsers.add_parser("migrate", help="Apply database migrations.")
-        migrate.set_defaults(handler=self.migrate)
+        init = subparsers.add_parser("init", help="Initialize database schemas.")
+        init.set_defaults(handler=self.init)
 
         server = subparsers.add_parser("serve", help="Run the FastAPI application.")
         server.add_argument("--host", default="0.0.0.0")
@@ -149,8 +151,7 @@ class ApplicationCLI:
         if self.cpkit_ddl_path is not None:
             return self.cpkit_ddl_path
 
-        package_root = Path(__file__).resolve().parents[2]
-        candidate = package_root / "resources" / "ddl.sql"
+        candidate = cpkit_ddl_path()
         if candidate.exists():
             return candidate
         return None

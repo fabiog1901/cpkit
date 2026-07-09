@@ -13,7 +13,7 @@ cd examples/todo_app
 poetry install
 export CPKIT_DB_URL='postgres://...'
 export CPKIT_MASTER_KEY='base64-encoded-32-byte-key'
-poetry run todo migrate
+poetry run todo init
 poetry run todo serve --reload
 ```
 

@@ -14,6 +14,7 @@ from .dependencies import (
     require_user,
 )
 from .repository import CPKitRepo, configure_repository, get_repo
+from .resources import cpkit_ddl_path, cpkit_resources_directory
 from .time import STRFTIME, TS_FORMAT
 from .webapp import template_webapp_directory
 
@@ -28,6 +29,8 @@ __all__ = [
     "create_cpkit_bundle",
     "create_cpkit_admin_router",
     "create_cpkit_app",
+    "cpkit_ddl_path",
+    "cpkit_resources_directory",
     "get_access_scope",
     "get_audit_actor",
     "get_repo",

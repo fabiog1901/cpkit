@@ -56,6 +56,8 @@ Good rules of thumb:
 - `repository.py`: The framework repository composition point. `CPKitRepo`
   combines all cpkit repository mixins; `configure_repository()` tells cpkit how
   to create app repo instances.
+- `resources/`: Packaged framework resources such as `ddl.sql`. Use
+  `cpkit_ddl_path()` to locate them from installed wheels.
 - `admin.py`: Composes built-in admin routers under the admin API prefix.
 - `dependencies.py`: Global dependency accessors used by routers after a bundle
   has been configured.
@@ -67,7 +69,7 @@ Good rules of thumb:
   to attach request/job identifiers.
 - `auth/`: OIDC login/logout, API key auth, role/group mapping, encrypted
   secrets, and auth dependencies.
-- `cli/`: reusable app CLI for migration, schema checks, and serving.
+- `cli/`: reusable app CLI for schema initialization, schema checks, and serving.
 - `config/`: small environment/config helpers.
 - `db/`: database pool, query helpers, Cockroach/Postgres compatibility, and
   DB error translation.
@@ -78,4 +80,3 @@ Good rules of thumb:
 - `playbooks/`: versioned playbook storage and Ansible runner integration.
 - `settings/`: framework settings table and admin settings API.
 - `webapp/`: static HTML/CSS/JS shell and extension contract for app UIs.
-

@@ -1,4 +1,4 @@
-"""Database migration and preflight helpers for cpkit applications."""
+"""Database schema initialization and preflight helpers for cpkit applications."""
 
 from pathlib import Path
 

@@ -5,7 +5,7 @@ description = "Reusable control-plane framework extracted from cp."
 authors = [
     {name = "Your Name", email = "you@example.com"}
 ]
-license = "Apache 2.0"
+license = "Apache-2.0"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -26,8 +26,9 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 include = [
-    {path = "resources/ddl.sql", format = ["sdist", "wheel"]},
+    {path = "cpkit/resources/ddl.sql", format = ["sdist", "wheel"]},
     {path = "resources/*.md", format = ["sdist", "wheel"]},
+    {path = "resources/webapp_extension_template.js", format = ["sdist", "wheel"]},
     {path = "cpkit/webapp", format = ["sdist", "wheel"]},
 ]
 

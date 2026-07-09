@@ -1,7 +1,7 @@
 """Reusable command-line helpers for cpkit applications."""
 
 from .base import ApplicationCLI, main
-from .migration import apply_sql_file, check_database, check_table
+from .schema import apply_sql_file, check_database, check_table
 from .server import serve_uvicorn
 
 __all__ = [
