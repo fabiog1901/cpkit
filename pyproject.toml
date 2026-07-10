@@ -1,6 +1,6 @@
 [project]
 name = "cpkit"
-version = "0.1.0"
+version = "0.1.1"
 description = "Reusable control-plane framework extracted from cp."
 authors = [
     {name = "Your Name", email = "you@example.com"}
