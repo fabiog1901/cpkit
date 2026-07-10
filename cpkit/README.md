@@ -4,6 +4,9 @@ cpkit is an application framework for FastAPI apps that want the same
 operational backbone: authentication, audit events, settings, jobs, playbooks,
 database helpers, and a shared webapp shell.
 
+Installed apps should consume cpkit as a normal Python dependency, for example
+`pip install cpkit` or a `[project.dependencies]` entry of `"cpkit"`.
+
 The package is organized by capability. The directories look flat at first
 glance, but most capability packages use the same internal pattern:
 

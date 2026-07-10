@@ -14,3 +14,7 @@ The framework DDL is packaged at `cpkit.resources/ddl.sql`. Code should use
 Application-owned schema should stay outside cpkit, such as CP's `resources/ddl.sql`.
 When an app is packaged for pip, that app should include its own DDL as package
 data or expose an app-owned resource helper for its schema.
+
+Installed applications should depend on cpkit from PyPI, while examples inside
+this repository may use a local editable path dependency for framework
+development.

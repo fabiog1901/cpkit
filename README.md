@@ -40,6 +40,51 @@ provides the surrounding platform.
 - A packaged template webapp for framework/admin pages
 - A standard CLI with `serve` and `init`
 
+## Install
+
+Applications should depend on cpkit from PyPI:
+
+```bash
+pip install cpkit
+```
+
+In an application package, declare cpkit as a normal dependency:
+
+```toml
+[project]
+dependencies = [
+    "cpkit",
+]
+```
+
+During local cpkit framework development, examples may use a path dependency
+instead, such as `cpkit = {path = "../..", develop = true}`. Published apps
+should use the PyPI dependency form.
+
+cpkit also ships framework resources inside the Python package, including the
+framework DDL at `cpkit/resources/ddl.sql`. Application code can locate it with:
+
+```python
+from cpkit import cpkit_ddl_path
+```
+
+The built-in cpkit CLI uses that packaged DDL automatically when running
+`init`.
+
+## Database Requirement
+
+cpkit requires a PostgreSQL-compatible database. It is designed for Postgres-ish
+SQL and has been developed around PostgreSQL/CockroachDB-style behavior.
+
+Good options include:
+
+- PostgreSQL
+- CockroachDB
+- Embedded/dev helpers such as the Python package `pgembed`
+
+Set `CPKIT_DB_URL` to the database URL before running schema initialization or
+serving an app.
+
 ## Try The TODO Example
 
 The best way to understand cpkit is to run the TODO example:
@@ -67,6 +112,10 @@ export CPKIT_MASTER_KEY='base64-encoded-32-byte-key'
 poetry run todo init
 poetry run todo serve --reload
 ```
+
+The TODO example uses a local path dependency on cpkit because it lives inside
+this repository. A real app outside this repository should depend on cpkit from
+PyPI.
 
 Then open:
 

@@ -8,6 +8,14 @@ CLI behavior, and the template webapp.
 
 ## Run
 
+This example uses a local editable path dependency on cpkit because it lives
+inside the cpkit repository. An app outside this repository would normally use
+`pip install cpkit` or declare `"cpkit"` as a package dependency.
+
+cpkit needs a PostgreSQL-compatible database. PostgreSQL, CockroachDB, or a
+development helper such as the Python package `pgembed` are suitable options.
+Set `CPKIT_DB_URL` before running `init`.
+
 ```bash
 cd examples/todo_app
 poetry install
