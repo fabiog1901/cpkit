@@ -198,11 +198,6 @@ class Repo(CPKitRepo):
             operation="todos.events.count",
         )
 
-    @property
-    def job_cluster_map_table(self) -> str:
-        return ""
-
-
 def todo_to_export_row(todo: Todo) -> dict[str, Any]:
     return {
         "todo_id": str(todo.todo_id),

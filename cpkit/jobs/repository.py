@@ -95,82 +95,30 @@ class JobsRepositoryMixin:
         groups: list[str],
         is_admin: bool = False,
     ) -> JobStatsResponse:
-        if is_admin:
-            return (
-                fetch_one(
-                    f"""
-                    SELECT
-                        COUNT(*) AS total,
-                        COALESCE(SUM(CASE WHEN status = %s THEN 1 ELSE 0 END), 0) AS running,
-                        COALESCE(SUM(CASE WHEN status = %s THEN 1 ELSE 0 END), 0) AS queued,
-                        COALESCE(SUM(CASE WHEN status = %s THEN 1 ELSE 0 END), 0) AS failed
-                    FROM {JOBS_TABLE}
-                    """,
-                    ("RUNNING", "QUEUED", "FAILED"),
-                    JobStatsResponse,
-                )
-                or JobStatsResponse(total=0, running=0, queued=0, failed=0)
-            )
-
         return (
             fetch_one(
                 f"""
-                WITH
-                c AS (
-                    SELECT cluster_id
-                    FROM clusters
-                    WHERE grp = ANY (%s)
-                ),
-                cj AS (
-                    SELECT DISTINCT job_id
-                    FROM {self.job_cluster_map_table}
-                    WHERE cluster_id IN (SELECT * FROM c)
-                )
                 SELECT
                     COUNT(*) AS total,
                     COALESCE(SUM(CASE WHEN status = %s THEN 1 ELSE 0 END), 0) AS running,
                     COALESCE(SUM(CASE WHEN status = %s THEN 1 ELSE 0 END), 0) AS queued,
                     COALESCE(SUM(CASE WHEN status = %s THEN 1 ELSE 0 END), 0) AS failed
                 FROM {JOBS_TABLE}
-                WHERE job_id IN (SELECT * FROM cj)
                 """,
-                (groups, "RUNNING", "QUEUED", "FAILED"),
+                ("RUNNING", "QUEUED", "FAILED"),
                 JobStatsResponse,
             )
             or JobStatsResponse(total=0, running=0, queued=0, failed=0)
         )
 
     def list_jobs(self, groups: list[str], is_admin: bool = False) -> list[Job]:
-        if is_admin:
-            return fetch_all(
-                f"""
-                SELECT *
-                FROM {JOBS_TABLE}
-                ORDER BY created_at DESC
-                """,
-                (),
-                Job,
-            )
-
         return fetch_all(
             f"""
-            WITH
-            c AS (
-                SELECT cluster_id
-                FROM clusters
-                WHERE grp = ANY (%s)
-            ),
-            cj AS (
-                SELECT job_id
-                FROM {self.job_cluster_map_table}
-                WHERE cluster_id IN (SELECT * FROM c)
-            )
             SELECT *
             FROM {JOBS_TABLE}
-            WHERE job_id IN (SELECT * FROM cj)
             ORDER BY created_at DESC;
             """,
-            (groups,),
+            (),
             Job,
         )
 
@@ -180,35 +128,13 @@ class JobsRepositoryMixin:
         groups: list[str],
         is_admin: bool = False,
     ) -> Job | None:
-        if is_admin:
-            return fetch_one(
-                f"""
-                SELECT *
-                FROM {JOBS_TABLE}
-                WHERE job_id = %s
-                """,
-                (job_id,),
-                Job,
-            )
         return fetch_one(
             f"""
-            WITH
-            c AS (
-                SELECT cluster_id
-                FROM clusters
-                WHERE grp = ANY (%s)
-            ),
-            cj AS (
-                SELECT job_id
-                FROM {self.job_cluster_map_table}
-                WHERE cluster_id IN (SELECT * FROM c)
-            )
             SELECT *
             FROM {JOBS_TABLE}
-            WHERE job_id IN (SELECT * FROM cj)
-                AND job_id = %s
+            WHERE job_id = %s
             """,
-            (groups, job_id),
+            (job_id,),
             Job,
         )
 
@@ -223,13 +149,6 @@ class JobsRepositoryMixin:
             """,
             (job_id,),
             Task,
-        )
-
-    @property
-    def job_cluster_map_table(self) -> str:
-        raise NotImplementedError(
-            "Applications using group-scoped job visibility must provide "
-            "a job-cluster mapping table."
         )
 
     def list_linked_resources(self, job_id: int) -> list[LinkedResourceRef]:

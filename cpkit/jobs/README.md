@@ -27,3 +27,7 @@ jobs.
 When a normal queue message is being processed, the worker sets the current
 audit job context so audit records can store the job id separately from details.
 
+The default repository methods are application-agnostic and list framework job
+records directly. Apps that need tenant, project, cluster, or other
+domain-specific job visibility should override `get_job_stats()`, `list_jobs()`,
+and `get_job()` in their own repository class.
