@@ -9,7 +9,7 @@ from pathlib import Path
 
 from cpkit.resources import cpkit_ddl_path
 
-from .schema import apply_sql_file, check_database, check_table
+from .schema import apply_sql_file, check_database, check_table, initialize_playbooks
 from .server import serve_uvicorn
 
 
@@ -22,6 +22,7 @@ class ApplicationCLI:
         app_name: str,
         app_import: str,
         app_ddl_paths: Sequence[str | Path] = (),
+        app_playbook_dirs: Sequence[str | Path] = (),
         app_schema_checks: Sequence[str] = (),
         db_url_env: str = "CPKIT_DB_URL",
         cpkit_ddl_path: str | Path | None = None,
@@ -30,6 +31,7 @@ class ApplicationCLI:
         self.app_name = app_name
         self.app_import = app_import
         self.app_ddl_paths = tuple(Path(path) for path in app_ddl_paths)
+        self.app_playbook_dirs = tuple(Path(path) for path in app_playbook_dirs)
         self.app_schema_checks = tuple(app_schema_checks)
         self.db_url_env = db_url_env
         self.cpkit_ddl_path = Path(cpkit_ddl_path) if cpkit_ddl_path else None
@@ -64,6 +66,11 @@ class ApplicationCLI:
             os.getenv("CPKIT_APP_DDL"),
             cpkit_config.get("ddl"),
         )
+        playbook_dirs = _configured_paths(
+            root,
+            os.getenv("CPKIT_APP_PLAYBOOKS"),
+            cpkit_config.get("playbooks"),
+        )
         schema_checks = _configured_values(
             os.getenv("CPKIT_SCHEMA_CHECKS"),
             cpkit_config.get("schema_checks"),
@@ -78,6 +85,7 @@ class ApplicationCLI:
             app_name=effective_app_name,
             app_import=app_import,
             app_ddl_paths=ddl_paths,
+            app_playbook_dirs=playbook_dirs,
             app_schema_checks=schema_checks,
             db_url_env=db_url_env,
             cpkit_ddl_path=(root / cpkit_ddl) if cpkit_ddl else None,
@@ -100,6 +108,11 @@ class ApplicationCLI:
         for path in self._app_ddl_paths():
             print(f"Applying {self.app_name} schema: {path}")
             apply_sql_file(db_url, path)
+
+        playbook_dirs = self._app_playbook_dirs()
+        if playbook_dirs:
+            print(f"Initializing {self.app_name} playbooks.")
+            initialize_playbooks(db_url, playbook_dirs)
 
         self._check_schemas(db_url)
         print("Initialization complete.")
@@ -161,6 +174,9 @@ class ApplicationCLI:
             return self.app_ddl_paths
         root = self.project_root or Path(os.getcwd()).resolve()
         return tuple(path for path in _default_ddl_paths(root) if path.exists())
+
+    def _app_playbook_dirs(self) -> tuple[Path, ...]:
+        return tuple(path for path in self.app_playbook_dirs if path.exists())
 
 
 def main(argv: Sequence[str] | None = None) -> int:

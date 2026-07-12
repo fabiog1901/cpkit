@@ -71,6 +71,19 @@ from cpkit import cpkit_ddl_path
 The built-in cpkit CLI uses that packaged DDL automatically when running
 `init`.
 
+Apps can also ask `init` to load default playbooks from app-owned directories:
+
+```toml
+[tool.cpkit]
+playbooks = [
+    "my_app/resources/playbooks",
+]
+```
+
+cpkit loads `.yaml`, `.yml`, and `.json` files into `cpkit.playbooks` with
+idempotent version/default handling. Apps remain responsible for resolving
+their own package resources and passing normal paths to cpkit.
+
 ## Database Requirement
 
 cpkit requires a PostgreSQL-compatible database. It is designed for Postgres-ish
