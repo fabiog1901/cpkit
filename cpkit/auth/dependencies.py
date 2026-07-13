@@ -101,6 +101,9 @@ def create_auth_dependencies(
 
     def get_access_scope(claims: dict[str, Any]) -> tuple[list[str], bool]:
         """Return normalized caller groups plus whether the caller is an admin."""
+        if claims.get("auth_disabled"):
+            return [], True
+
         groups_claim_name = str(
             claims.get("_groups_claim_name", oidc.config.groups_claim_name)
         )

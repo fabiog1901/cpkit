@@ -37,7 +37,7 @@ class AuditEventsRepositoryMixin:
         return fetch_scalar(
             f"""
             SELECT count(*) AS id
-            FROM {EVENT_LOG_TABLE} AS OF SYSTEM TIME follower_read_timestamp()
+            FROM {EVENT_LOG_TABLE}
             """,
             (),
             operation="audit.get_event_count",
