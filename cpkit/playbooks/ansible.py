@@ -7,6 +7,7 @@ import logging
 import os
 import signal
 import shutil
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -308,6 +309,8 @@ def _run_async_preserving_signals(**kwargs):
 
 
 def _capture_signal_handlers():
+    if not _can_manage_signal_handlers():
+        return None
     return {
         signal.SIGINT: signal.getsignal(signal.SIGINT),
         signal.SIGTERM: signal.getsignal(signal.SIGTERM),
@@ -315,8 +318,14 @@ def _capture_signal_handlers():
 
 
 def _restore_signal_handlers(signal_handlers) -> None:
+    if signal_handlers is None:
+        return
     for signal_number, handler in signal_handlers.items():
         signal.signal(signal_number, handler)
+
+
+def _can_manage_signal_handlers() -> bool:
+    return threading.current_thread() is threading.main_thread()
 
 
 def run_playbook(
