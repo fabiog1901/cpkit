@@ -1,6 +1,7 @@
 """Generic queue worker loop."""
 
 import asyncio
+import concurrent.futures
 import logging
 import random
 from collections.abc import Callable, Mapping
@@ -109,10 +110,12 @@ async def run_queue_worker(
     jitter_max: float = 1.3,
 ) -> None:
     """Continuously claim due queue messages and dispatch them to handlers."""
+    running_handlers: set[asyncio.Future] = set()
     try:
         while True:
             await asyncio.sleep(poll_seconds * random.uniform(jitter_min, jitter_max))
             try:
+                loop = asyncio.get_running_loop()
                 with get_pool().connection() as conn:
                     with conn.cursor(row_factory=class_row(QueueMessage)) as cur:
                         with conn.transaction():
@@ -126,44 +129,39 @@ async def run_queue_worker(
                                 message.msg_type,
                             )
 
-                            job_id_token = _set_current_job_id(message)
-                            try:
-                                handler = _resolve_handler(
-                                    message,
-                                    handlers=handlers,
-                                    resolve_handler=resolve_handler,
-                                )
-                                payload = (
-                                    parse_message(message)
-                                    if parse_message is not None
-                                    else message.msg_data
-                                )
-                                handler(message.msg_id, payload, message.created_by)
-                            except Exception as err:
-                                logger.exception(
-                                    "Queue message %s failed during dispatch",
-                                    message.msg_id,
-                                )
-                                if handle_failure is not None:
-                                    try:
-                                        handle_failure(message, err)
-                                    except Exception:
-                                        logger.exception(
-                                            "Queue message %s failure hook failed",
-                                            message.msg_id,
-                                        )
-                            finally:
-                                if job_id_token is not None:
-                                    job_id_ctx.reset(job_id_token)
-                                cur.execute(
-                                    f"DELETE FROM {QUEUE_TABLE} WHERE msg_id = %s;",
-                                    (message.msg_id,),
-                                )
+                            handler = _resolve_handler(
+                                message,
+                                handlers=handlers,
+                                resolve_handler=resolve_handler,
+                            )
+                            payload = (
+                                parse_message(message)
+                                if parse_message is not None
+                                else message.msg_data
+                            )
+                            future = loop.run_in_executor(
+                                None,
+                                _run_queue_handler,
+                                message,
+                                handler,
+                                payload,
+                                handle_failure,
+                            )
+                            running_handlers.add(future)
+                            future.add_done_callback(running_handlers.discard)
+                            future.add_done_callback(_log_handler_crash)
+                            cur.execute(
+                                f"DELETE FROM {QUEUE_TABLE} WHERE msg_id = %s;",
+                                (message.msg_id,),
+                            )
             except Exception:
                 logger.exception("Unexpected failure while polling the message queue")
 
     except asyncio.CancelledError:
         logger.info("Queue worker was stopped")
+        for future in running_handlers:
+            future.cancel()
+        raise
 
 
 def _claim_due_message(cur) -> QueueMessage | None:
@@ -180,6 +178,44 @@ def _set_current_job_id(message: QueueMessage):
     if message.msg_type == FAIL_ZOMBIE_JOBS_MESSAGE_TYPE:
         return None
     return job_id_ctx.set(message.msg_id)
+
+
+def _run_queue_handler(
+    message: QueueMessage,
+    handler: QueueHandler,
+    payload: Any,
+    handle_failure: FailureHandler | None,
+) -> None:
+    job_id_token = _set_current_job_id(message)
+    try:
+        handler(message.msg_id, payload, message.created_by)
+    except Exception as err:
+        logger.exception(
+            "Queue message %s failed during dispatch",
+            message.msg_id,
+        )
+        if handle_failure is not None:
+            try:
+                handle_failure(message, err)
+            except Exception:
+                logger.exception(
+                    "Queue message %s failure hook failed",
+                    message.msg_id,
+                )
+    finally:
+        if job_id_token is not None:
+            job_id_ctx.reset(job_id_token)
+
+
+def _log_handler_crash(future: asyncio.Future) -> None:
+    try:
+        future.result()
+    except asyncio.CancelledError:
+        pass
+    except concurrent.futures.CancelledError:
+        pass
+    except Exception:
+        logger.exception("Queue handler crashed unexpectedly")
 
 
 def _resolve_handler(
