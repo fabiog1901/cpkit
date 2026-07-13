@@ -180,7 +180,7 @@ class JobsRepositoryMixin:
             WITH
             fail_zombie_jobs AS (
                 INSERT INTO {QUEUE_TABLE} (msg_type, start_after)
-                VALUES (%s, now() + INTERVAL '300s' + + (random() * INTERVAL '10s')
+                VALUES (%s, now() + INTERVAL '300s' + (random() * INTERVAL '10s'))
                 RETURNING 1
             )
             UPDATE {JOBS_TABLE}
