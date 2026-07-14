@@ -116,7 +116,15 @@ class JobsService:
                     self.repo,
                     requested_by,
                     "JOB_RESCHEDULE_REQUESTED",
-                    _payload_value(payload) | {"job_id": msg_id.job_id},
+                    _payload_value(payload)
+                    | {
+                        "job_id": selected_job.job_id,
+                        "job_type": selected_job.job_type,
+                        "source_job_id": selected_job.job_id,
+                        "source_job_type": selected_job.job_type,
+                        "replacement_job_id": msg_id.job_id,
+                        "replacement_job_type": _type_value(command_type),
+                    },
                 )
             return msg_id.job_id
         except RepositoryError as err:
@@ -136,3 +144,7 @@ def _payload_value(payload: Any) -> dict[str, Any]:
     if isinstance(payload, dict):
         return payload
     return {"payload": payload}
+
+
+def _type_value(value: Any) -> str:
+    return str(getattr(value, "value", value))
