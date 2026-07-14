@@ -31,27 +31,26 @@ playbooks before and after the target playbook:
 - `SSH_CREDENTIAL_PREPARE`: required when hooks are enabled.
 - `SSH_CREDENTIAL_CLEANUP`: optional and best-effort.
 
-This is disabled by default. Apps opt in per call with
-`ssh_credential_hook_enabled=True` and may override hook playbook names or the
-credential root directory. The prepare hook receives job, target playbook, and
-target host context plus `cpkit_credential_dir`, a job-scoped directory created
-with `0700` permissions.
+This is disabled by default and normally configured through CPKit settings under
+`playbooks.ssh_credential_hook.*`. On startup, `create_cpkit_app()` loads those
+settings into `PlaybookRunOptions`; settings updates and resets refresh the
+in-memory options for subsequent playbook runs.
 
-Apps can also configure defaults once during app construction:
+The settings are:
 
-```python
-from cpkit import PlaybookRunOptions, create_cpkit_app
+- `playbooks.ssh_credential_hook.enabled`
+- `playbooks.ssh_credential_hook.prepare_playbook`
+- `playbooks.ssh_credential_hook.cleanup_playbook`
+- `playbooks.ssh_credential_hook.dir_root`
+- `playbooks.ssh_credential_hook.retain_artifacts_on_failure`
 
-app = create_cpkit_app(
-    ...,
-    playbook_run_options=PlaybookRunOptions(
-        ssh_credential_hook_enabled=True,
-    ),
-)
-```
+Apps may pass `playbook_run_options=PlaybookRunOptions(...)` to
+`create_cpkit_app()` only when they intentionally want to bypass settings-backed
+configuration. Direct `run_playbook()` keyword arguments still override the
+effective app default for that one call.
 
-Any direct `run_playbook()` keyword arguments still override the app default for
-that one call.
+The prepare hook receives job, target playbook, and target host context plus
+`cpkit_credential_dir`, a job-scoped directory created with `0700` permissions.
 
 If the prepare hook writes conventional files such as `id_key`,
 `id_key-cert.pub`, `known_hosts`, or `ssh_config`, cpkit applies them to the

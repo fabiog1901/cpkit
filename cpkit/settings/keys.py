@@ -28,3 +28,14 @@ class FrameworkSettingKey(StrEnum):
     oidc_authz_user_groups = "oidc.authz_user_groups"
     oidc_authz_admin_groups = "oidc.authz_admin_groups"
     oidc_authz_groups_claim = "oidc.authz_groups_claim"
+    playbooks_ssh_credential_hook_enabled = "playbooks.ssh_credential_hook.enabled"
+    playbooks_ssh_credential_hook_prepare_playbook = (
+        "playbooks.ssh_credential_hook.prepare_playbook"
+    )
+    playbooks_ssh_credential_hook_cleanup_playbook = (
+        "playbooks.ssh_credential_hook.cleanup_playbook"
+    )
+    playbooks_ssh_credential_hook_dir_root = "playbooks.ssh_credential_hook.dir_root"
+    playbooks_ssh_credential_hook_retain_artifacts_on_failure = (
+        "playbooks.ssh_credential_hook.retain_artifacts_on_failure"
+    )

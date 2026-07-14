@@ -13,7 +13,11 @@ from fastapi.staticfiles import StaticFiles
 from cpkit.bundle import CpkitBundle
 from cpkit.db import close_db, initialize_postgres
 from cpkit.logging import configure_logging, request_logging_middleware
-from cpkit.playbooks import PlaybookRunOptions, configure_playbook_run_options
+from cpkit.playbooks import (
+    PlaybookRunOptions,
+    configure_playbook_run_options,
+    load_playbook_run_options_from_settings,
+)
 from cpkit.repository import configure_repository
 from cpkit.repository import get_repo as get_configured_repo
 
@@ -55,8 +59,10 @@ def create_cpkit_app(
         else:
             raise ValueError("repo_class or get_repo is required.")
 
-        configure_playbook_run_options(playbook_run_options)
         repo = get_configured_repo()
+        configure_playbook_run_options(
+            playbook_run_options or load_playbook_run_options_from_settings(repo)
+        )
         configure_logging(
             repo,
             force=True,

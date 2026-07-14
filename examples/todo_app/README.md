@@ -34,13 +34,12 @@ The extension also demonstrates dashboard composition. Its
 with stable `data-dashboard-key` values; cpkit renders those cards as draggable
 siblings next to the built-in Jobs and Events cards.
 
-The app also demonstrates cpkit playbook runtime defaults. `main.py` passes
-`PlaybookRunOptions(ssh_credential_hook_enabled=True)` to `create_cpkit_app()`,
-and `[tool.cpkit].playbooks` points at `resources/playbooks`. The export job
-runs the app-provided `EXPORT_TODOS` playbook, and the two reserved SSH
-credential hook playbooks in that directory are no-op placeholders showing how
-an app can package `SSH_CREDENTIAL_PREPARE` and `SSH_CREDENTIAL_CLEANUP` for
-`todo init` to load.
+The app also demonstrates settings-backed cpkit playbook defaults.
+`[tool.cpkit].playbooks` points at `resources/playbooks`; `todo init` loads the
+app-provided `EXPORT_TODOS` playbook and the two reserved SSH credential hook
+playbooks. The SSH hooks are no-op placeholders showing how an app can package
+`SSH_CREDENTIAL_PREPARE` and `SSH_CREDENTIAL_CLEANUP` while CPKit manages hook
+enablement through the Settings API/UI.
 
 ## API
 

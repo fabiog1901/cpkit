@@ -3,12 +3,7 @@
 import os
 from pathlib import Path
 
-from cpkit import (
-    PlaybookRunOptions,
-    create_cpkit_app,
-    create_cpkit_bundle,
-    template_webapp_directory,
-)
+from cpkit import create_cpkit_app, create_cpkit_bundle, template_webapp_directory
 
 from .api import router as todos_router
 from .models import COMMAND_MODELS
@@ -33,7 +28,4 @@ app = create_cpkit_app(
     static_directory=template_webapp_directory(),
     app_static_directory=WEBAPP_DIR,
     default_journald_identifier="todo-app",
-    playbook_run_options=PlaybookRunOptions(
-        ssh_credential_hook_enabled=True,
-    ),
 )

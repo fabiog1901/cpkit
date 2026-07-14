@@ -12,6 +12,8 @@ from .ansible import (
     SSH_CREDENTIAL_PREPARE_PLAYBOOK,
     configure_playbook_run_options,
     get_playbook_run_options,
+    is_playbook_run_options_setting,
+    load_playbook_run_options_from_settings,
     run_playbook,
     run_playbook_lite,
 )
@@ -49,6 +51,8 @@ __all__ = [
     "configure_playbook_run_options",
     "create_playbooks_router",
     "get_playbook_run_options",
+    "is_playbook_run_options_setting",
+    "load_playbook_run_options_from_settings",
     "run_playbook",
     "run_playbook_lite",
 ]

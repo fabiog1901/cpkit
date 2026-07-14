@@ -13,7 +13,11 @@ from .dependencies import (
     require_readonly,
     require_user,
 )
-from .playbooks import PlaybookRunOptions, configure_playbook_run_options
+from .playbooks import (
+    PlaybookRunOptions,
+    configure_playbook_run_options,
+    load_playbook_run_options_from_settings,
+)
 from .repository import CPKitRepo, configure_repository, get_repo
 from .resources import cpkit_ddl_path, cpkit_resources_directory
 from .time import STRFTIME, TS_FORMAT
@@ -37,6 +41,7 @@ __all__ = [
     "get_access_scope",
     "get_audit_actor",
     "get_repo",
+    "load_playbook_run_options_from_settings",
     "require_admin",
     "require_authenticated",
     "require_readonly",

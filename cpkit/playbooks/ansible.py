@@ -16,6 +16,7 @@ import ansible_runner
 import yaml
 
 from cpkit.time import STRFTIME
+from cpkit.settings import FrameworkSettingKey
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ class PlaybookRunOptions:
 
 DEFAULT_PLAYBOOK_RUN_OPTIONS = PlaybookRunOptions()
 _configured_playbook_run_options = DEFAULT_PLAYBOOK_RUN_OPTIONS
+PLAYBOOK_SSH_CREDENTIAL_SETTING_PREFIX = "playbooks.ssh_credential_hook."
 
 
 class AnsibleRunner:
@@ -539,6 +541,68 @@ def configure_playbook_run_options(options: PlaybookRunOptions | None = None) ->
 def get_playbook_run_options() -> PlaybookRunOptions:
     """Return the currently configured playbook runtime options."""
     return _configured_playbook_run_options
+
+
+def load_playbook_run_options_from_settings(repo: Any) -> PlaybookRunOptions:
+    """Build playbook runtime options from cpkit settings."""
+    SettingKey = FrameworkSettingKey
+    defaults = DEFAULT_PLAYBOOK_RUN_OPTIONS
+    return PlaybookRunOptions(
+        ssh_credential_hook_enabled=_setting_bool(
+            repo,
+            SettingKey.playbooks_ssh_credential_hook_enabled,
+            defaults.ssh_credential_hook_enabled,
+        ),
+        ssh_credential_prepare_playbook=_setting_text(
+            repo,
+            SettingKey.playbooks_ssh_credential_hook_prepare_playbook,
+            defaults.ssh_credential_prepare_playbook,
+        ),
+        ssh_credential_cleanup_playbook=_setting_text(
+            repo,
+            SettingKey.playbooks_ssh_credential_hook_cleanup_playbook,
+            defaults.ssh_credential_cleanup_playbook,
+        ),
+        ssh_credential_dir_root=_setting_text(
+            repo,
+            SettingKey.playbooks_ssh_credential_hook_dir_root,
+            defaults.ssh_credential_dir_root,
+        ),
+        ssh_credential_retain_artifacts_on_failure=_setting_bool(
+            repo,
+            SettingKey.playbooks_ssh_credential_hook_retain_artifacts_on_failure,
+            defaults.ssh_credential_retain_artifacts_on_failure,
+        ),
+    )
+
+
+def is_playbook_run_options_setting(setting_id: str) -> bool:
+    """Return whether a setting key controls playbook runtime options."""
+    return setting_id.startswith(PLAYBOOK_SSH_CREDENTIAL_SETTING_PREFIX)
+
+
+def _setting_text(repo: Any, key: Any, default: str) -> str:
+    setting = repo.get_setting(key)
+    if setting is None or setting.value is None:
+        return default
+    value = str(setting.value).strip()
+    return value or default
+
+
+def _setting_bool(repo: Any, key: Any, default: bool) -> bool:
+    setting = repo.get_setting(key)
+    if setting is None or setting.value is None:
+        return default
+    return _strict_bool(str(setting.value), str(key))
+
+
+def _strict_bool(value: str, key: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"Setting '{key}' must be a boolean value.")
 
 
 def _create_job_credential_dir(job_id: int, credential_dir_root: str) -> str:

@@ -4,6 +4,7 @@ import os
 import tempfile
 import threading
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ from cpkit.playbooks.ansible import (
     SSH_CREDENTIAL_PREPARE_PLAYBOOK,
     configure_playbook_run_options,
     get_playbook_run_options,
+    load_playbook_run_options_from_settings,
     _build_ssh_vars_from_credential_dir,
     _effective_playbook_run_options,
     _merge_ssh_credential_vars,
@@ -72,6 +74,17 @@ class FakeRepo:
 
     def create_task(self, *args):
         self.tasks.append(args)
+
+
+class FakeSettingsRepo:
+    def __init__(self, values):
+        self.values = values
+
+    def get_setting(self, key):
+        value = self.values.get(str(key))
+        if value is None:
+            return None
+        return SimpleNamespace(value=value)
 
 
 class AnsibleSignalTests(unittest.TestCase):
@@ -142,6 +155,31 @@ class SSHCredentialHookTests(unittest.TestCase):
 
         self.assertTrue(options.ssh_credential_hook_enabled)
         self.assertEqual(options.ssh_credential_dir_root, "/tmp/custom")
+
+    def test_load_playbook_run_options_from_settings(self):
+        options = load_playbook_run_options_from_settings(
+            FakeSettingsRepo(
+                {
+                    "playbooks.ssh_credential_hook.enabled": "yes",
+                    "playbooks.ssh_credential_hook.prepare_playbook": "PREPARE_ME",
+                    "playbooks.ssh_credential_hook.cleanup_playbook": "CLEAN_ME",
+                    "playbooks.ssh_credential_hook.dir_root": " /tmp/settings-root ",
+                    "playbooks.ssh_credential_hook.retain_artifacts_on_failure": "on",
+                }
+            )
+        )
+
+        self.assertTrue(options.ssh_credential_hook_enabled)
+        self.assertEqual(options.ssh_credential_prepare_playbook, "PREPARE_ME")
+        self.assertEqual(options.ssh_credential_cleanup_playbook, "CLEAN_ME")
+        self.assertEqual(options.ssh_credential_dir_root, "/tmp/settings-root")
+        self.assertTrue(options.ssh_credential_retain_artifacts_on_failure)
+
+    def test_invalid_settings_boolean_fails_clearly(self):
+        with self.assertRaisesRegex(ValueError, "must be a boolean"):
+            load_playbook_run_options_from_settings(
+                FakeSettingsRepo({"playbooks.ssh_credential_hook.enabled": "sometimes"})
+            )
 
     def test_run_playbook_overrides_configured_options(self):
         configure_playbook_run_options(

@@ -98,7 +98,12 @@ VALUES
     ('oidc.authz_readonly_groups',          NULL, '',                                    'csv',     'oidc',    false, 'Comma-delimited IdP groups mapped to the CP_READONLY role.'),
     ('oidc.authz_user_groups',              NULL, '',                                    'csv',     'oidc',    false, 'Comma-delimited IdP groups mapped to the CP_USER role.'),
     ('oidc.authz_admin_groups',             NULL, '',                                    'csv',     'oidc',    false, 'Comma-delimited IdP groups mapped to the CP_ADMIN role.'),
-    ('oidc.authz_groups_claim',             NULL, 'groups',                              'TEXT',  'oidc',    false, 'JWT claim containing IdP group memberships.')
+    ('oidc.authz_groups_claim',             NULL, 'groups',                              'TEXT',  'oidc',    false, 'JWT claim containing IdP group memberships.'),
+    ('playbooks.ssh_credential_hook.enabled', NULL, 'false',                             'boolean', 'playbooks', false, 'Enable SSH credential preparation and cleanup hooks before running playbooks.'),
+    ('playbooks.ssh_credential_hook.prepare_playbook', NULL, 'SSH_CREDENTIAL_PREPARE',   'TEXT',    'playbooks', false, 'Playbook name used to prepare temporary SSH credentials.'),
+    ('playbooks.ssh_credential_hook.cleanup_playbook', NULL, 'SSH_CREDENTIAL_CLEANUP',   'TEXT',    'playbooks', false, 'Playbook name used to clean up temporary SSH credentials.'),
+    ('playbooks.ssh_credential_hook.dir_root', NULL, '/tmp/cpkit/jobs',                  'TEXT',    'playbooks', false, 'Directory root used for job-scoped temporary SSH credential material.'),
+    ('playbooks.ssh_credential_hook.retain_artifacts_on_failure', NULL, 'false',         'boolean', 'playbooks', false, 'Retain job-scoped SSH credential artifacts when playbook execution fails.')
 ON CONFLICT (key) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS cpkit.api_keys (

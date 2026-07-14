@@ -18,10 +18,15 @@ from .audit import (
 from .auth import ApiKeysService, AuthBundle, create_auth_bundle
 from .db import get_pool
 from .dependencies import configure_cpkit_dependencies
-from .errors import ServiceError, raise_http_from_service_error
+from .errors import ServiceError, ServiceValidationError, raise_http_from_service_error
 from .jobs import JobsService, QueueMessage, create_jobs_router, create_queue_worker
 from .jobs.worker import QueueHandler
-from .playbooks import PlaybooksService
+from .playbooks import (
+    PlaybooksService,
+    configure_playbook_run_options,
+    is_playbook_run_options_setting,
+    load_playbook_run_options_from_settings,
+)
 from .repository import get_repo
 from .settings import SettingsService
 
@@ -187,41 +192,48 @@ def create_cpkit_bundle(
 
 def _setting_updated_hook(
     audit_event_hook: AuditHook | None,
-) -> Callable[[Any, str, str, str], None] | None:
-    if audit_event_hook is None:
-        return None
-
+) -> Callable[[Any, str, str, str], None]:
     def log_setting_updated(
         repo: Any,
         setting_id: str,
         value: str,
         updated_by: str,
     ) -> None:
-        audit_event_hook(
-            repo,
-            updated_by,
-            "SETTING_UPDATED",
-            {"ID": setting_id, "value": value},
-        )
+        _refresh_playbook_options_if_needed(repo, setting_id)
+        if audit_event_hook is not None:
+            audit_event_hook(
+                repo,
+                updated_by,
+                "SETTING_UPDATED",
+                {"ID": setting_id, "value": value},
+            )
 
     return log_setting_updated
 
 
 def _setting_reset_hook(
     audit_event_hook: AuditHook | None,
-) -> Callable[[Any, str, str], None] | None:
-    if audit_event_hook is None:
-        return None
-
+) -> Callable[[Any, str, str], None]:
     def log_setting_reset(repo: Any, setting_id: str, updated_by: str) -> None:
-        audit_event_hook(
-            repo,
-            updated_by,
-            "SETTING_RESET",
-            {"ID": setting_id},
-        )
+        _refresh_playbook_options_if_needed(repo, setting_id)
+        if audit_event_hook is not None:
+            audit_event_hook(
+                repo,
+                updated_by,
+                "SETTING_RESET",
+                {"ID": setting_id},
+            )
 
     return log_setting_reset
+
+
+def _refresh_playbook_options_if_needed(repo: Any, setting_id: str) -> None:
+    if not is_playbook_run_options_setting(setting_id):
+        return
+    try:
+        configure_playbook_run_options(load_playbook_run_options_from_settings(repo))
+    except ValueError as err:
+        raise ServiceValidationError(str(err)) from err
 
 
 def _type_value(value: Any) -> Any:
