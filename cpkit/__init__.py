@@ -13,6 +13,7 @@ from .dependencies import (
     require_readonly,
     require_user,
 )
+from .playbooks import PlaybookRunOptions, configure_playbook_run_options
 from .repository import CPKitRepo, configure_repository, get_repo
 from .resources import cpkit_ddl_path, cpkit_resources_directory
 from .time import STRFTIME, TS_FORMAT
@@ -22,9 +23,11 @@ __all__ = [
     "CPKitRepo",
     "ApplicationCLI",
     "CpkitBundle",
+    "PlaybookRunOptions",
     "STRFTIME",
     "TS_FORMAT",
     "configure_cpkit_dependencies",
+    "configure_playbook_run_options",
     "configure_repository",
     "create_cpkit_bundle",
     "create_cpkit_admin_router",

@@ -9,9 +9,13 @@ from unittest.mock import patch
 
 from cpkit.playbooks.ansible import (
     AnsibleRunner,
+    PlaybookRunOptions,
     SSH_CREDENTIAL_CLEANUP_PLAYBOOK,
     SSH_CREDENTIAL_PREPARE_PLAYBOOK,
+    configure_playbook_run_options,
+    get_playbook_run_options,
     _build_ssh_vars_from_credential_dir,
+    _effective_playbook_run_options,
     _merge_ssh_credential_vars,
     _run_async_preserving_signals,
 )
@@ -116,6 +120,45 @@ class AnsibleSignalTests(unittest.TestCase):
 
 
 class SSHCredentialHookTests(unittest.TestCase):
+    def tearDown(self):
+        configure_playbook_run_options()
+
+    def test_configured_playbook_run_options_are_used_by_default(self):
+        configure_playbook_run_options(
+            PlaybookRunOptions(
+                ssh_credential_hook_enabled=True,
+                ssh_credential_dir_root="/tmp/custom",
+            )
+        )
+
+        options = _effective_playbook_run_options(
+            playbook_run_options=None,
+            ssh_credential_hook_enabled=None,
+            ssh_credential_prepare_playbook=None,
+            ssh_credential_cleanup_playbook=None,
+            ssh_credential_dir_root=None,
+            ssh_credential_retain_artifacts_on_failure=None,
+        )
+
+        self.assertTrue(options.ssh_credential_hook_enabled)
+        self.assertEqual(options.ssh_credential_dir_root, "/tmp/custom")
+
+    def test_run_playbook_overrides_configured_options(self):
+        configure_playbook_run_options(
+            PlaybookRunOptions(ssh_credential_hook_enabled=True)
+        )
+
+        options = _effective_playbook_run_options(
+            playbook_run_options=None,
+            ssh_credential_hook_enabled=False,
+            ssh_credential_prepare_playbook=None,
+            ssh_credential_cleanup_playbook=None,
+            ssh_credential_dir_root=None,
+            ssh_credential_retain_artifacts_on_failure=None,
+        )
+
+        self.assertFalse(options.ssh_credential_hook_enabled)
+
     def test_build_ssh_vars_from_credential_dir(self):
         with tempfile.TemporaryDirectory() as tmp:
             credential_dir = Path(tmp)
@@ -187,8 +230,10 @@ class SSHCredentialHookTests(unittest.TestCase):
             runner = AnsibleRunner(
                 repo=repo,
                 job_id=99,
-                ssh_credential_hook_enabled=True,
-                ssh_credential_dir_root=credential_root,
+                playbook_run_options=PlaybookRunOptions(
+                    ssh_credential_hook_enabled=True,
+                    ssh_credential_dir_root=credential_root,
+                ),
             )
             with patch(
                 "cpkit.playbooks.ansible._run_async_preserving_signals", fake_run_async

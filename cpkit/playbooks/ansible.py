@@ -47,6 +47,21 @@ class LiteRunnerResult:
     playbook_version: str | None = None
 
 
+@dataclass(frozen=True)
+class PlaybookRunOptions:
+    """Runtime options used by cpkit playbook execution."""
+
+    ssh_credential_hook_enabled: bool = False
+    ssh_credential_prepare_playbook: str = SSH_CREDENTIAL_PREPARE_PLAYBOOK
+    ssh_credential_cleanup_playbook: str = SSH_CREDENTIAL_CLEANUP_PLAYBOOK
+    ssh_credential_dir_root: str = SSH_CREDENTIAL_DIR_ROOT
+    ssh_credential_retain_artifacts_on_failure: bool = False
+
+
+DEFAULT_PLAYBOOK_RUN_OPTIONS = PlaybookRunOptions()
+_configured_playbook_run_options = DEFAULT_PLAYBOOK_RUN_OPTIONS
+
+
 class AnsibleRunner:
     """Run a stored playbook and record job/task progress through a repository."""
 
@@ -60,11 +75,7 @@ class AnsibleRunner:
         completed_status: Any = "COMPLETED",
         failed_status: Any = "FAILED",
         job_dir_root: str = "/tmp",
-        ssh_credential_hook_enabled: bool = False,
-        ssh_credential_prepare_playbook: str = SSH_CREDENTIAL_PREPARE_PLAYBOOK,
-        ssh_credential_cleanup_playbook: str = SSH_CREDENTIAL_CLEANUP_PLAYBOOK,
-        ssh_credential_dir_root: str = SSH_CREDENTIAL_DIR_ROOT,
-        ssh_credential_retain_artifacts_on_failure: bool = False,
+        playbook_run_options: PlaybookRunOptions | None = None,
     ):
         self.data: dict[str, Any] = {}
         self.repo = repo
@@ -74,13 +85,7 @@ class AnsibleRunner:
         self.completed_status = completed_status
         self.failed_status = failed_status
         self.job_dir_root = job_dir_root
-        self.ssh_credential_hook_enabled = ssh_credential_hook_enabled
-        self.ssh_credential_prepare_playbook = ssh_credential_prepare_playbook
-        self.ssh_credential_cleanup_playbook = ssh_credential_cleanup_playbook
-        self.ssh_credential_dir_root = ssh_credential_dir_root
-        self.ssh_credential_retain_artifacts_on_failure = (
-            ssh_credential_retain_artifacts_on_failure
-        )
+        self.playbook_run_options = playbook_run_options or get_playbook_run_options()
 
     def status_handler(self, status, runner_config):
         return
@@ -155,10 +160,10 @@ class AnsibleRunner:
             self.repo.set_job_playbook_version(self.job_id, loaded_playbook.version)
 
             effective_extra_vars = dict(extra_vars)
-            if self.ssh_credential_hook_enabled:
+            if self.playbook_run_options.ssh_credential_hook_enabled:
                 credential_dir = _create_job_credential_dir(
                     self.job_id,
-                    self.ssh_credential_dir_root,
+                    self.playbook_run_options.ssh_credential_dir_root,
                 )
                 hook_vars = _build_ssh_credential_hook_vars(
                     job_id=self.job_id,
@@ -168,10 +173,10 @@ class AnsibleRunner:
                     extra_vars=extra_vars,
                 )
                 prepare_playbook = self._load_playbook(
-                    self.ssh_credential_prepare_playbook
+                    self.playbook_run_options.ssh_credential_prepare_playbook
                 )
                 prepare_result = self._run_loaded_playbook(
-                    self.ssh_credential_prepare_playbook,
+                    self.playbook_run_options.ssh_credential_prepare_playbook,
                     prepare_playbook,
                     hook_vars,
                     job_dir_suffix="ssh-credential-prepare",
@@ -181,7 +186,9 @@ class AnsibleRunner:
                     "SSH_CREDENTIAL_PREPARE",
                     {
                         "enabled": True,
-                        "playbook_name": self.ssh_credential_prepare_playbook,
+                        "playbook_name": (
+                            self.playbook_run_options.ssh_credential_prepare_playbook
+                        ),
                         "playbook_version": prepare_result.playbook_version,
                         "status": prepare_result.status,
                     },
@@ -234,7 +241,7 @@ class AnsibleRunner:
                 loaded_playbook.version if loaded_playbook else None,
             )
         finally:
-            if self.ssh_credential_hook_enabled and credential_dir:
+            if self.playbook_run_options.ssh_credential_hook_enabled and credential_dir:
                 self._run_ssh_credential_cleanup(
                     credential_dir=credential_dir,
                     target_playbook_name=playbook_name,
@@ -244,7 +251,7 @@ class AnsibleRunner:
                     extra_vars=extra_vars,
                 )
                 if not (
-                    self.ssh_credential_retain_artifacts_on_failure
+                    self.playbook_run_options.ssh_credential_retain_artifacts_on_failure
                     and target_result is not None
                     and target_result.status != "successful"
                 ):
@@ -351,11 +358,13 @@ class AnsibleRunner:
         extra_vars: dict,
     ) -> None:
         try:
-            cleanup_playbook = self._load_playbook(self.ssh_credential_cleanup_playbook)
+            cleanup_playbook = self._load_playbook(
+                self.playbook_run_options.ssh_credential_cleanup_playbook
+            )
         except Exception:
             logger.info(
                 "Optional SSH credential cleanup playbook '%s' is not configured",
-                self.ssh_credential_cleanup_playbook,
+                self.playbook_run_options.ssh_credential_cleanup_playbook,
             )
             return
 
@@ -367,7 +376,7 @@ class AnsibleRunner:
             extra_vars=extra_vars,
         )
         cleanup_result = self._run_loaded_playbook(
-            self.ssh_credential_cleanup_playbook,
+            self.playbook_run_options.ssh_credential_cleanup_playbook,
             cleanup_playbook,
             cleanup_vars,
             job_dir_suffix="ssh-credential-cleanup",
@@ -376,14 +385,16 @@ class AnsibleRunner:
         if cleanup_result.status != "successful":
             logger.warning(
                 "SSH credential cleanup playbook '%s' finished with status %s",
-                self.ssh_credential_cleanup_playbook,
+                self.playbook_run_options.ssh_credential_cleanup_playbook,
                 cleanup_result.status,
             )
         self._record_internal_task(
             "SSH_CREDENTIAL_CLEANUP",
             {
                 "enabled": True,
-                "playbook_name": self.ssh_credential_cleanup_playbook,
+                "playbook_name": (
+                    self.playbook_run_options.ssh_credential_cleanup_playbook
+                ),
                 "playbook_version": cleanup_result.playbook_version,
                 "status": cleanup_result.status,
             },
@@ -515,6 +526,17 @@ def _can_manage_signal_handlers() -> bool:
     return threading.current_thread() is threading.main_thread()
 
 
+def configure_playbook_run_options(options: PlaybookRunOptions | None = None) -> None:
+    """Configure default runtime options for subsequent playbook runs."""
+    global _configured_playbook_run_options
+    _configured_playbook_run_options = options or DEFAULT_PLAYBOOK_RUN_OPTIONS
+
+
+def get_playbook_run_options() -> PlaybookRunOptions:
+    """Return the currently configured playbook runtime options."""
+    return _configured_playbook_run_options
+
+
 def _create_job_credential_dir(job_id: int, credential_dir_root: str) -> str:
     credential_dir = os.path.join(credential_dir_root, str(job_id), "ssh")
     os.makedirs(credential_dir, mode=0o700, exist_ok=True)
@@ -636,13 +658,24 @@ def run_playbook(
     completed_status: Any = "COMPLETED",
     failed_status: Any = "FAILED",
     job_dir_root: str = "/tmp",
-    ssh_credential_hook_enabled: bool = False,
-    ssh_credential_prepare_playbook: str = SSH_CREDENTIAL_PREPARE_PLAYBOOK,
-    ssh_credential_cleanup_playbook: str = SSH_CREDENTIAL_CLEANUP_PLAYBOOK,
-    ssh_credential_dir_root: str = SSH_CREDENTIAL_DIR_ROOT,
-    ssh_credential_retain_artifacts_on_failure: bool = False,
+    playbook_run_options: PlaybookRunOptions | None = None,
+    ssh_credential_hook_enabled: bool | None = None,
+    ssh_credential_prepare_playbook: str | None = None,
+    ssh_credential_cleanup_playbook: str | None = None,
+    ssh_credential_dir_root: str | None = None,
+    ssh_credential_retain_artifacts_on_failure: bool | None = None,
 ) -> RunnerResult:
     """Run a stored playbook for a framework job."""
+    effective_options = _effective_playbook_run_options(
+        playbook_run_options=playbook_run_options,
+        ssh_credential_hook_enabled=ssh_credential_hook_enabled,
+        ssh_credential_prepare_playbook=ssh_credential_prepare_playbook,
+        ssh_credential_cleanup_playbook=ssh_credential_cleanup_playbook,
+        ssh_credential_dir_root=ssh_credential_dir_root,
+        ssh_credential_retain_artifacts_on_failure=(
+            ssh_credential_retain_artifacts_on_failure
+        ),
+    )
     return AnsibleRunner(
         repo=repo,
         job_id=job_id,
@@ -651,14 +684,39 @@ def run_playbook(
         completed_status=completed_status,
         failed_status=failed_status,
         job_dir_root=job_dir_root,
-        ssh_credential_hook_enabled=ssh_credential_hook_enabled,
-        ssh_credential_prepare_playbook=ssh_credential_prepare_playbook,
-        ssh_credential_cleanup_playbook=ssh_credential_cleanup_playbook,
-        ssh_credential_dir_root=ssh_credential_dir_root,
-        ssh_credential_retain_artifacts_on_failure=(
-            ssh_credential_retain_artifacts_on_failure
-        ),
+        playbook_run_options=effective_options,
     ).launch_runner(playbook_name, extra_vars)
+
+
+def _effective_playbook_run_options(
+    *,
+    playbook_run_options: PlaybookRunOptions | None,
+    ssh_credential_hook_enabled: bool | None,
+    ssh_credential_prepare_playbook: str | None,
+    ssh_credential_cleanup_playbook: str | None,
+    ssh_credential_dir_root: str | None,
+    ssh_credential_retain_artifacts_on_failure: bool | None,
+) -> PlaybookRunOptions:
+    base = playbook_run_options or get_playbook_run_options()
+    return PlaybookRunOptions(
+        ssh_credential_hook_enabled=(
+            base.ssh_credential_hook_enabled
+            if ssh_credential_hook_enabled is None
+            else ssh_credential_hook_enabled
+        ),
+        ssh_credential_prepare_playbook=(
+            ssh_credential_prepare_playbook or base.ssh_credential_prepare_playbook
+        ),
+        ssh_credential_cleanup_playbook=(
+            ssh_credential_cleanup_playbook or base.ssh_credential_cleanup_playbook
+        ),
+        ssh_credential_dir_root=ssh_credential_dir_root or base.ssh_credential_dir_root,
+        ssh_credential_retain_artifacts_on_failure=(
+            base.ssh_credential_retain_artifacts_on_failure
+            if ssh_credential_retain_artifacts_on_failure is None
+            else ssh_credential_retain_artifacts_on_failure
+        ),
+    )
 
 
 def run_playbook_lite(

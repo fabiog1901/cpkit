@@ -2,12 +2,16 @@
 
 from .ansible import (
     AnsibleRunner,
+    DEFAULT_PLAYBOOK_RUN_OPTIONS,
     LiteAnsibleRunner,
     LiteRunnerResult,
+    PlaybookRunOptions,
     RunnerResult,
     SSH_CREDENTIAL_CLEANUP_PLAYBOOK,
     SSH_CREDENTIAL_DIR_ROOT,
     SSH_CREDENTIAL_PREPARE_PLAYBOOK,
+    configure_playbook_run_options,
+    get_playbook_run_options,
     run_playbook,
     run_playbook_lite,
 )
@@ -26,8 +30,10 @@ from .types import (
 __all__ = [
     "PLAYBOOKS_TABLE",
     "AnsibleRunner",
+    "DEFAULT_PLAYBOOK_RUN_OPTIONS",
     "LiteAnsibleRunner",
     "LiteRunnerResult",
+    "PlaybookRunOptions",
     "Playbook",
     "PlaybookListResponse",
     "PlaybookOverview",
@@ -40,7 +46,9 @@ __all__ = [
     "SSH_CREDENTIAL_CLEANUP_PLAYBOOK",
     "SSH_CREDENTIAL_DIR_ROOT",
     "SSH_CREDENTIAL_PREPARE_PLAYBOOK",
+    "configure_playbook_run_options",
     "create_playbooks_router",
+    "get_playbook_run_options",
     "run_playbook",
     "run_playbook_lite",
 ]

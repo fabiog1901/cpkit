@@ -37,6 +37,22 @@ credential root directory. The prepare hook receives job, target playbook, and
 target host context plus `cpkit_credential_dir`, a job-scoped directory created
 with `0700` permissions.
 
+Apps can also configure defaults once during app construction:
+
+```python
+from cpkit import PlaybookRunOptions, create_cpkit_app
+
+app = create_cpkit_app(
+    ...,
+    playbook_run_options=PlaybookRunOptions(
+        ssh_credential_hook_enabled=True,
+    ),
+)
+```
+
+Any direct `run_playbook()` keyword arguments still override the app default for
+that one call.
+
 If the prepare hook writes conventional files such as `id_key`,
 `id_key-cert.pub`, `known_hosts`, or `ssh_config`, cpkit applies them to the
 target playbook through Ansible SSH extra vars while preserving existing
