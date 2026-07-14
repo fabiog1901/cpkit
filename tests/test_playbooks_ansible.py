@@ -23,6 +23,14 @@ from cpkit.playbooks.ansible import (
 )
 from cpkit.playbooks.types import Playbook
 
+DEFAULT_PLAYBOOK_SETTINGS = {
+    "playbooks.ssh_credential_hook.enabled": "false",
+    "playbooks.ssh_credential_hook.prepare_playbook": "SSH_CREDENTIAL_PREPARE",
+    "playbooks.ssh_credential_hook.cleanup_playbook": "SSH_CREDENTIAL_CLEANUP",
+    "playbooks.ssh_credential_hook.dir_root": "/tmp/cpkit/jobs",
+    "playbooks.ssh_credential_hook.retain_artifacts_on_failure": "false",
+}
+
 
 class FakeThread:
     def is_alive(self):
@@ -78,13 +86,10 @@ class FakeRepo:
 
 class FakeSettingsRepo:
     def __init__(self, values):
-        self.values = values
+        self.values = {**DEFAULT_PLAYBOOK_SETTINGS, **values}
 
     def get_setting(self, key):
-        value = self.values.get(str(key))
-        if value is None:
-            return None
-        return SimpleNamespace(value=value)
+        return SimpleNamespace(value=self.values[str(key)])
 
 
 class AnsibleSignalTests(unittest.TestCase):

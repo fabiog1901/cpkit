@@ -546,32 +546,24 @@ def get_playbook_run_options() -> PlaybookRunOptions:
 def load_playbook_run_options_from_settings(repo: Any) -> PlaybookRunOptions:
     """Build playbook runtime options from cpkit settings."""
     SettingKey = FrameworkSettingKey
-    defaults = PlaybookRunOptions()
     return PlaybookRunOptions(
-        ssh_credential_hook_enabled=_setting_bool(
-            repo,
-            SettingKey.playbooks_ssh_credential_hook_enabled,
-            defaults.ssh_credential_hook_enabled,
+        ssh_credential_hook_enabled=as_bool(
+            _setting_value(repo, SettingKey.playbooks_ssh_credential_hook_enabled)
         ),
-        ssh_credential_prepare_playbook=_setting_text(
-            repo,
-            SettingKey.playbooks_ssh_credential_hook_prepare_playbook,
-            defaults.ssh_credential_prepare_playbook,
+        ssh_credential_prepare_playbook=_setting_value(
+            repo, SettingKey.playbooks_ssh_credential_hook_prepare_playbook
         ),
-        ssh_credential_cleanup_playbook=_setting_text(
-            repo,
-            SettingKey.playbooks_ssh_credential_hook_cleanup_playbook,
-            defaults.ssh_credential_cleanup_playbook,
+        ssh_credential_cleanup_playbook=_setting_value(
+            repo, SettingKey.playbooks_ssh_credential_hook_cleanup_playbook
         ),
-        ssh_credential_dir_root=_setting_text(
-            repo,
-            SettingKey.playbooks_ssh_credential_hook_dir_root,
-            defaults.ssh_credential_dir_root,
+        ssh_credential_dir_root=_setting_value(
+            repo, SettingKey.playbooks_ssh_credential_hook_dir_root
         ),
-        ssh_credential_retain_artifacts_on_failure=_setting_bool(
-            repo,
-            SettingKey.playbooks_ssh_credential_hook_retain_artifacts_on_failure,
-            defaults.ssh_credential_retain_artifacts_on_failure,
+        ssh_credential_retain_artifacts_on_failure=as_bool(
+            _setting_value(
+                repo,
+                SettingKey.playbooks_ssh_credential_hook_retain_artifacts_on_failure,
+            )
         ),
     )
 
@@ -581,18 +573,8 @@ def is_playbook_run_options_setting(setting_id: str) -> bool:
     return setting_id.startswith(PLAYBOOK_SSH_CREDENTIAL_SETTING_PREFIX)
 
 
-def _setting_text(repo: Any, key: Any, default: str) -> str:
-    setting = repo.get_setting(key)
-    if setting is None or setting.value is None:
-        return default
-    return str(setting.value)
-
-
-def _setting_bool(repo: Any, key: Any, default: bool) -> bool:
-    setting = repo.get_setting(key)
-    if setting is None or setting.value is None:
-        return default
-    return as_bool(str(setting.value), default=default)
+def _setting_value(repo: Any, key: Any) -> str:
+    return str(repo.get_setting(key).value)
 
 
 def _create_job_credential_dir(job_id: int, credential_dir_root: str) -> str:
