@@ -65,7 +65,6 @@ class PlaybookRunOptions:
 
 
 _configured_playbook_run_options = PlaybookRunOptions()
-PLAYBOOK_SSH_CREDENTIAL_SETTING_PREFIX = "playbooks.ssh_credential_hook."
 
 
 class AnsibleRunner:
@@ -566,11 +565,6 @@ def load_playbook_run_options_from_settings(repo: Any) -> PlaybookRunOptions:
             )
         ),
     )
-
-
-def is_playbook_run_options_setting(setting_id: str) -> bool:
-    """Return whether a setting key controls playbook runtime options."""
-    return setting_id.startswith(PLAYBOOK_SSH_CREDENTIAL_SETTING_PREFIX)
 
 
 def _setting_value(repo: Any, key: Any) -> str:

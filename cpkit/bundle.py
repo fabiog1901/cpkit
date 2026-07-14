@@ -21,12 +21,7 @@ from .dependencies import configure_cpkit_dependencies
 from .errors import ServiceError, raise_http_from_service_error
 from .jobs import JobsService, QueueMessage, create_jobs_router, create_queue_worker
 from .jobs.worker import QueueHandler
-from .playbooks import (
-    PlaybooksService,
-    configure_playbook_run_options,
-    is_playbook_run_options_setting,
-    load_playbook_run_options_from_settings,
-)
+from .playbooks import PlaybooksService
 from .repository import get_repo
 from .settings import SettingsService
 
@@ -199,7 +194,6 @@ def _setting_updated_hook(
         value: str,
         updated_by: str,
     ) -> None:
-        _refresh_playbook_options_if_needed(repo, setting_id)
         if audit_event_hook is not None:
             audit_event_hook(
                 repo,
@@ -215,7 +209,6 @@ def _setting_reset_hook(
     audit_event_hook: AuditHook | None,
 ) -> Callable[[Any, str, str], None]:
     def log_setting_reset(repo: Any, setting_id: str, updated_by: str) -> None:
-        _refresh_playbook_options_if_needed(repo, setting_id)
         if audit_event_hook is not None:
             audit_event_hook(
                 repo,
@@ -225,12 +218,6 @@ def _setting_reset_hook(
             )
 
     return log_setting_reset
-
-
-def _refresh_playbook_options_if_needed(repo: Any, setting_id: str) -> None:
-    if not is_playbook_run_options_setting(setting_id):
-        return
-    configure_playbook_run_options(load_playbook_run_options_from_settings(repo))
 
 
 def _type_value(value: Any) -> Any:
