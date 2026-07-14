@@ -1,7 +1,13 @@
 """Reusable command-line helpers for cpkit applications."""
 
 from .base import ApplicationCLI, main
-from .schema import apply_sql_file, check_database, check_table, initialize_playbooks
+from .schema import (
+    apply_sql_file,
+    check_database,
+    check_table,
+    disable_oidc,
+    initialize_playbooks,
+)
 from .server import serve_uvicorn
 
 __all__ = [
@@ -9,6 +15,7 @@ __all__ = [
     "apply_sql_file",
     "check_database",
     "check_table",
+    "disable_oidc",
     "initialize_playbooks",
     "main",
     "serve_uvicorn",

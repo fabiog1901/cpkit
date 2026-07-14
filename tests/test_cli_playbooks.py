@@ -8,7 +8,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from cpkit.cli.base import ApplicationCLI
-from cpkit.cli.schema import _initialize_playbooks_from_dirs, _iter_playbook_files
+from cpkit.cli.schema import (
+    _initialize_playbooks_from_dirs,
+    _iter_playbook_files,
+    disable_oidc,
+)
 from cpkit.playbooks.types import Playbook
 
 
@@ -58,6 +62,38 @@ class FakePlaybookRepo:
         self.rows.pop((name, version), None)
         if self.default_versions.get(name) == version:
             self.default_versions.pop(name)
+
+
+class FakeCursor:
+    def __init__(self, row=("oidc.enabled",)):
+        self.row = row
+        self.executed = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def execute(self, sql, params):
+        self.executed = (sql, params)
+
+    def fetchone(self):
+        return self.row
+
+
+class FakeConnection:
+    def __init__(self, cursor):
+        self.cursor_obj = cursor
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def cursor(self):
+        return self.cursor_obj
 
 
 class PlaybookInitializationTests(unittest.TestCase):
@@ -244,6 +280,51 @@ name = "sample"
                     ("check_table", "cpkit.settings"),
                 ],
             )
+
+    def test_disable_oidc_command_updates_setting(self):
+        calls = []
+        cli = ApplicationCLI(
+            app_name="sample",
+            app_import="sample.main:app",
+            db_url_env="SAMPLE_DB_URL",
+        )
+
+        def fake_disable(db_url):
+            calls.append(db_url)
+
+        with (
+            patch.dict("os.environ", {"SAMPLE_DB_URL": "postgres://example"}),
+            patch("cpkit.cli.base.disable_oidc", fake_disable),
+        ):
+            with redirect_stdout(io.StringIO()) as stdout:
+                result = cli.main(("disable-oidc",))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(calls, ["postgres://example"])
+        self.assertIn("OIDC disabled", stdout.getvalue())
+
+    def test_disable_oidc_updates_oidc_enabled_setting(self):
+        cursor = FakeCursor()
+
+        with patch(
+            "cpkit.cli.schema.psycopg.connect",
+            return_value=FakeConnection(cursor),
+        ) as connect:
+            disable_oidc("postgres://example")
+
+        connect.assert_called_once_with("postgres://example", autocommit=True)
+        self.assertIn("UPDATE cpkit.settings", cursor.executed[0])
+        self.assertEqual(cursor.executed[1], ("false", "cpkit-cli", "oidc.enabled"))
+
+    def test_disable_oidc_fails_when_setting_is_missing(self):
+        cursor = FakeCursor(row=None)
+
+        with patch(
+            "cpkit.cli.schema.psycopg.connect",
+            return_value=FakeConnection(cursor),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "Run init first"):
+                disable_oidc("postgres://example")
 
 
 if __name__ == "__main__":

@@ -17,8 +17,21 @@ to discover the app import path, DDL files, playbook directories, schema checks,
 and DB URL variable. The app can then expose commands like:
 
 - `init`: initialize cpkit and app schemas from DDL files.
-- `check`: verify DB connectivity and required tables.
+- `disable-oidc`: set `oidc.enabled` to `false` for lockout recovery.
 - `serve`: run the configured FastAPI app with Uvicorn.
+
+## OIDC Lockout Recovery
+
+If OIDC settings lock users out of the web UI, use the application CLI to
+disable OIDC directly in `cpkit.settings`:
+
+```bash
+CPKIT_DB_URL=postgres://... my-app disable-oidc
+```
+
+Use the app-specific DB URL environment variable if the app configured one with
+`db_url_env`, for example `KLOIGOS_DB_URL`. Restart the application after the
+command so startup and auth state reload from the updated setting.
 
 ## Playbook Initialization
 

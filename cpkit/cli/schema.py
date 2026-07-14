@@ -9,6 +9,8 @@ import psycopg
 from cpkit.db import close_db, initialize_postgres
 from cpkit.db import postgres as postgres_db
 from cpkit.repository import CPKitRepo
+from cpkit.settings import FrameworkSettingKey
+from cpkit.settings.repository import SETTINGS_TABLE
 from cpkit.time import STRFTIME
 
 SUPPORTED_PLAYBOOK_EXTENSIONS = {".yaml", ".yml", ".json"}
@@ -37,6 +39,29 @@ def check_table(db_url: str, table_name: str) -> None:
         with conn.cursor() as cur:
             cur.execute(f"SELECT 1 FROM {table_name} LIMIT 1")
             cur.fetchone()
+
+
+def disable_oidc(db_url: str, updated_by: str = "cpkit-cli") -> None:
+    """Disable OIDC directly in cpkit settings."""
+    with psycopg.connect(db_url, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE {SETTINGS_TABLE}
+                SET
+                    value = %s,
+                    updated_at = CURRENT_TIMESTAMP,
+                    updated_by = %s
+                WHERE key = %s
+                RETURNING key
+                """,
+                ("false", updated_by, FrameworkSettingKey.oidc_enabled.value),
+            )
+            if cur.fetchone() is None:
+                raise RuntimeError(
+                    f"Required setting '{FrameworkSettingKey.oidc_enabled.value}' "
+                    "was not found. Run init first."
+                )
 
 
 def initialize_playbooks(

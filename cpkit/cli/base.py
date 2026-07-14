@@ -9,7 +9,13 @@ from pathlib import Path
 
 from cpkit.resources import cpkit_ddl_path
 
-from .schema import apply_sql_file, check_database, check_table, initialize_playbooks
+from .schema import (
+    apply_sql_file,
+    check_database,
+    check_table,
+    disable_oidc,
+    initialize_playbooks,
+)
 from .server import serve_uvicorn
 
 
@@ -129,12 +135,24 @@ class ApplicationCLI:
         )
         return 0
 
+    def disable_oidc(self, _args: argparse.Namespace) -> int:
+        """Disable OIDC in cpkit settings as a recovery command."""
+        disable_oidc(self._db_url())
+        print("OIDC disabled. Restart the application for the change to take effect.")
+        return 0
+
     def _parser(self) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(prog=self.app_name)
         subparsers = parser.add_subparsers(dest="command", required=True)
 
         init = subparsers.add_parser("init", help="Initialize database schemas.")
         init.set_defaults(handler=self.init)
+
+        disable_oidc_parser = subparsers.add_parser(
+            "disable-oidc",
+            help="Disable OIDC in cpkit settings for lockout recovery.",
+        )
+        disable_oidc_parser.set_defaults(handler=self.disable_oidc)
 
         server = subparsers.add_parser("serve", help="Run the FastAPI application.")
         server.add_argument("--host", default="0.0.0.0")
