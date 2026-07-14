@@ -14,7 +14,6 @@ from cpkit.bundle import CpkitBundle
 from cpkit.db import close_db, initialize_postgres
 from cpkit.logging import configure_logging, request_logging_middleware
 from cpkit.playbooks import (
-    PlaybookRunOptions,
     configure_playbook_run_options,
     load_playbook_run_options_from_settings,
 )
@@ -42,7 +41,6 @@ def create_cpkit_app(
     app_static_directory: str | Path | None = None,
     api_prefix: str = "/api",
     default_journald_identifier: str = "cp",
-    playbook_run_options: PlaybookRunOptions | None = None,
 ) -> FastAPI:
     """Create a cpkit-managed FastAPI app with an application API subapp."""
     capability_tuple = tuple(capabilities if capabilities is not None else bundles)
@@ -60,9 +58,7 @@ def create_cpkit_app(
             raise ValueError("repo_class or get_repo is required.")
 
         repo = get_configured_repo()
-        configure_playbook_run_options(
-            playbook_run_options or load_playbook_run_options_from_settings(repo)
-        )
+        configure_playbook_run_options(load_playbook_run_options_from_settings(repo))
         configure_logging(
             repo,
             force=True,

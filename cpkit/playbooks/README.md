@@ -44,10 +44,8 @@ The settings are:
 - `playbooks.ssh_credential_hook.dir_root`
 - `playbooks.ssh_credential_hook.retain_artifacts_on_failure`
 
-Apps may pass `playbook_run_options=PlaybookRunOptions(...)` to
-`create_cpkit_app()` only when they intentionally want to bypass settings-backed
-configuration. Direct `run_playbook()` keyword arguments still override the
-effective app default for that one call.
+Direct `run_playbook()` keyword arguments can still override the effective
+settings-backed default for that one call.
 
 The prepare hook receives job, target playbook, and target host context plus
 `cpkit_credential_dir`, a job-scoped directory created with `0700` permissions.

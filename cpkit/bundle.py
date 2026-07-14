@@ -18,7 +18,7 @@ from .audit import (
 from .auth import ApiKeysService, AuthBundle, create_auth_bundle
 from .db import get_pool
 from .dependencies import configure_cpkit_dependencies
-from .errors import ServiceError, ServiceValidationError, raise_http_from_service_error
+from .errors import ServiceError, raise_http_from_service_error
 from .jobs import JobsService, QueueMessage, create_jobs_router, create_queue_worker
 from .jobs.worker import QueueHandler
 from .playbooks import (
@@ -230,10 +230,7 @@ def _setting_reset_hook(
 def _refresh_playbook_options_if_needed(repo: Any, setting_id: str) -> None:
     if not is_playbook_run_options_setting(setting_id):
         return
-    try:
-        configure_playbook_run_options(load_playbook_run_options_from_settings(repo))
-    except ValueError as err:
-        raise ServiceValidationError(str(err)) from err
+    configure_playbook_run_options(load_playbook_run_options_from_settings(repo))
 
 
 def _type_value(value: Any) -> Any:

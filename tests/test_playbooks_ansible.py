@@ -163,7 +163,7 @@ class SSHCredentialHookTests(unittest.TestCase):
                     "playbooks.ssh_credential_hook.enabled": "yes",
                     "playbooks.ssh_credential_hook.prepare_playbook": "PREPARE_ME",
                     "playbooks.ssh_credential_hook.cleanup_playbook": "CLEAN_ME",
-                    "playbooks.ssh_credential_hook.dir_root": " /tmp/settings-root ",
+                    "playbooks.ssh_credential_hook.dir_root": "/tmp/settings-root",
                     "playbooks.ssh_credential_hook.retain_artifacts_on_failure": "on",
                 }
             )
@@ -174,12 +174,6 @@ class SSHCredentialHookTests(unittest.TestCase):
         self.assertEqual(options.ssh_credential_cleanup_playbook, "CLEAN_ME")
         self.assertEqual(options.ssh_credential_dir_root, "/tmp/settings-root")
         self.assertTrue(options.ssh_credential_retain_artifacts_on_failure)
-
-    def test_invalid_settings_boolean_fails_clearly(self):
-        with self.assertRaisesRegex(ValueError, "must be a boolean"):
-            load_playbook_run_options_from_settings(
-                FakeSettingsRepo({"playbooks.ssh_credential_hook.enabled": "sometimes"})
-            )
 
     def test_run_playbook_overrides_configured_options(self):
         configure_playbook_run_options(

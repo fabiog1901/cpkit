@@ -2,7 +2,6 @@
 
 from .ansible import (
     AnsibleRunner,
-    DEFAULT_PLAYBOOK_RUN_OPTIONS,
     LiteAnsibleRunner,
     LiteRunnerResult,
     PlaybookRunOptions,
@@ -32,7 +31,6 @@ from .types import (
 __all__ = [
     "PLAYBOOKS_TABLE",
     "AnsibleRunner",
-    "DEFAULT_PLAYBOOK_RUN_OPTIONS",
     "LiteAnsibleRunner",
     "LiteRunnerResult",
     "PlaybookRunOptions",

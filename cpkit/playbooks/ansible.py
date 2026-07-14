@@ -15,6 +15,7 @@ from typing import Any
 import ansible_runner
 import yaml
 
+from cpkit.config import as_bool
 from cpkit.time import STRFTIME
 from cpkit.settings import FrameworkSettingKey
 
@@ -63,8 +64,7 @@ class PlaybookRunOptions:
     ssh_credential_retain_artifacts_on_failure: bool = False
 
 
-DEFAULT_PLAYBOOK_RUN_OPTIONS = PlaybookRunOptions()
-_configured_playbook_run_options = DEFAULT_PLAYBOOK_RUN_OPTIONS
+_configured_playbook_run_options = PlaybookRunOptions()
 PLAYBOOK_SSH_CREDENTIAL_SETTING_PREFIX = "playbooks.ssh_credential_hook."
 
 
@@ -535,7 +535,7 @@ def _can_manage_signal_handlers() -> bool:
 def configure_playbook_run_options(options: PlaybookRunOptions | None = None) -> None:
     """Configure default runtime options for subsequent playbook runs."""
     global _configured_playbook_run_options
-    _configured_playbook_run_options = options or DEFAULT_PLAYBOOK_RUN_OPTIONS
+    _configured_playbook_run_options = options or PlaybookRunOptions()
 
 
 def get_playbook_run_options() -> PlaybookRunOptions:
@@ -546,7 +546,7 @@ def get_playbook_run_options() -> PlaybookRunOptions:
 def load_playbook_run_options_from_settings(repo: Any) -> PlaybookRunOptions:
     """Build playbook runtime options from cpkit settings."""
     SettingKey = FrameworkSettingKey
-    defaults = DEFAULT_PLAYBOOK_RUN_OPTIONS
+    defaults = PlaybookRunOptions()
     return PlaybookRunOptions(
         ssh_credential_hook_enabled=_setting_bool(
             repo,
@@ -585,24 +585,14 @@ def _setting_text(repo: Any, key: Any, default: str) -> str:
     setting = repo.get_setting(key)
     if setting is None or setting.value is None:
         return default
-    value = str(setting.value).strip()
-    return value or default
+    return str(setting.value)
 
 
 def _setting_bool(repo: Any, key: Any, default: bool) -> bool:
     setting = repo.get_setting(key)
     if setting is None or setting.value is None:
         return default
-    return _strict_bool(str(setting.value), str(key))
-
-
-def _strict_bool(value: str, key: str) -> bool:
-    normalized = value.strip().lower()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off"}:
-        return False
-    raise ValueError(f"Setting '{key}' must be a boolean value.")
+    return as_bool(str(setting.value), default=default)
 
 
 def _create_job_credential_dir(job_id: int, credential_dir_root: str) -> str:
