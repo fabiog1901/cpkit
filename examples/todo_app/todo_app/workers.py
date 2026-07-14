@@ -2,10 +2,11 @@
 
 import csv
 import datetime as dt
+import io
 import json
-from pathlib import Path
 
 from cpkit import get_repo
+from cpkit.playbooks import run_playbook
 
 from .models import CommandType, ExportTodosPayload
 from .repos import todo_to_export_row
@@ -13,49 +14,54 @@ from .repos import todo_to_export_row
 
 def export_todos(job_id: int, payload: ExportTodosPayload, created_by: str) -> None:
     repo = get_repo()
-    repo.update_job(job_id, "RUNNING")
-    repo.create_task(job_id, 1, _now(), "EXPORT_STARTED", f"Requested by {created_by}")
-    try:
-        todos = repo.list_todos(include_completed=payload.include_completed)
-        rows = [todo_to_export_row(todo) for todo in todos]
-        output_path = _write_export(job_id, payload, rows)
-        repo.create_task(job_id, 2, _now(), "EXPORT_WRITTEN", str(output_path))
-        repo.update_job(job_id, "COMPLETED")
-    except Exception as err:
-        repo.create_task(job_id, 99, _now(), "EXPORT_FAILED", str(err))
-        repo.update_job(job_id, "FAILED")
-        raise
+    todos = repo.list_todos(include_completed=payload.include_completed)
+    rows = [todo_to_export_row(todo) for todo in todos]
+    output_path = payload.output_directory / f"todos-{job_id}.{payload.format}"
+    result = run_playbook(
+        repo=repo,
+        job_id=job_id,
+        playbook_name="EXPORT_TODOS",
+        extra_vars={
+            "requested_by": created_by,
+            "export_format": payload.format,
+            "include_completed": payload.include_completed,
+            "output_dir": str(payload.output_directory),
+            "output_path": str(output_path),
+            "row_count": len(rows),
+            "rows": rows,
+            "export_json": json.dumps(rows, indent=2),
+            "export_csv": _export_csv(rows),
+        },
+    )
+    if result.status != "successful":
+        raise RuntimeError(f"Export playbook failed with status {result.status}")
+    repo.create_task(
+        job_id,
+        result.task_id_counter,
+        _now(),
+        "EXPORT_WRITTEN",
+        str(output_path),
+    )
 
 
-def _write_export(
-    job_id: int,
-    payload: ExportTodosPayload,
-    rows: list[dict],
-) -> Path:
-    output_dir = payload.output_directory
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"todos-{job_id}.{payload.format}"
-    if payload.format == "csv":
-        with output_path.open("w", newline="", encoding="utf-8") as fh:
-            writer = csv.DictWriter(
-                fh,
-                fieldnames=[
-                    "todo_id",
-                    "title",
-                    "notes",
-                    "completed",
-                    "created_at",
-                    "created_by",
-                    "updated_at",
-                    "updated_by",
-                ],
-            )
-            writer.writeheader()
-            writer.writerows(rows)
-        return output_path
-
-    output_path.write_text(json.dumps(rows, indent=2), encoding="utf-8")
-    return output_path
+def _export_csv(rows: list[dict]) -> str:
+    buffer = io.StringIO()
+    writer = csv.DictWriter(
+        buffer,
+        fieldnames=[
+            "todo_id",
+            "title",
+            "notes",
+            "completed",
+            "created_at",
+            "created_by",
+            "updated_at",
+            "updated_by",
+        ],
+    )
+    writer.writeheader()
+    writer.writerows(rows)
+    return buffer.getvalue()
 
 
 def _now():

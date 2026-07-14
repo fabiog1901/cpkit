@@ -49,12 +49,16 @@ class LiteRunnerResult:
 
 @dataclass(frozen=True)
 class PlaybookRunOptions:
-    """Runtime options used by cpkit playbook execution."""
+    """Runtime options used by cpkit playbook execution.
+
+    The default SSH credential hook playbooks are named
+    SSH_CREDENTIAL_PREPARE and SSH_CREDENTIAL_CLEANUP.
+    """
 
     ssh_credential_hook_enabled: bool = False
-    ssh_credential_prepare_playbook: str = SSH_CREDENTIAL_PREPARE_PLAYBOOK
-    ssh_credential_cleanup_playbook: str = SSH_CREDENTIAL_CLEANUP_PLAYBOOK
-    ssh_credential_dir_root: str = SSH_CREDENTIAL_DIR_ROOT
+    ssh_credential_prepare_playbook: str = "SSH_CREDENTIAL_PREPARE"
+    ssh_credential_cleanup_playbook: str = "SSH_CREDENTIAL_CLEANUP"
+    ssh_credential_dir_root: str = "/tmp/cpkit/jobs"
     ssh_credential_retain_artifacts_on_failure: bool = False
 
 

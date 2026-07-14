@@ -34,6 +34,14 @@ The extension also demonstrates dashboard composition. Its
 with stable `data-dashboard-key` values; cpkit renders those cards as draggable
 siblings next to the built-in Jobs and Events cards.
 
+The app also demonstrates cpkit playbook runtime defaults. `main.py` passes
+`PlaybookRunOptions(ssh_credential_hook_enabled=True)` to `create_cpkit_app()`,
+and `[tool.cpkit].playbooks` points at `resources/playbooks`. The export job
+runs the app-provided `EXPORT_TODOS` playbook, and the two reserved SSH
+credential hook playbooks in that directory are no-op placeholders showing how
+an app can package `SSH_CREDENTIAL_PREPARE` and `SSH_CREDENTIAL_CLEANUP` for
+`todo init` to load.
+
 ## API
 
 - `GET /api/todos/`
@@ -42,5 +50,6 @@ siblings next to the built-in Jobs and Events cards.
 - `DELETE /api/todos/{todo_id}`
 - `POST /api/todos/export`
 
-The export endpoint enqueues an `EXPORT_TODOS` job. The worker writes a JSON or
-CSV file under `exports/` and records the output path as a job task.
+The export endpoint enqueues an `EXPORT_TODOS` job. The worker gathers rows and
+then runs the `EXPORT_TODOS` playbook to write a JSON or CSV file under
+`exports/`.

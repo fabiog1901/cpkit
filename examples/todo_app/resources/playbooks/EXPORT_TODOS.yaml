@@ -1,0 +1,31 @@
+---
+- name: Export TODO data
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Ensure export directory exists
+      file:
+        path: "{{ output_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Write JSON export
+      copy:
+        dest: "{{ output_path }}"
+        content: "{{ export_json }}"
+        mode: "0644"
+      when: export_format == "json"
+
+    - name: Write CSV export
+      copy:
+        dest: "{{ output_path }}"
+        content: "{{ export_csv }}"
+        mode: "0644"
+      when: export_format == "csv"
+
+    - name: Data
+      debug:
+        msg:
+          output_path: "{{ output_path }}"
+          row_count: "{{ row_count }}"
