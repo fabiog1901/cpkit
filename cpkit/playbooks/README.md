@@ -23,3 +23,26 @@ job.
 4. The runner records the selected version on the job and writes task output as
    Ansible events arrive.
 
+## Optional SSH Credential Hooks
+
+`run_playbook()` can optionally run app-provided, versioned Ansible hook
+playbooks before and after the target playbook:
+
+- `SSH_CREDENTIAL_PREPARE`: required when hooks are enabled.
+- `SSH_CREDENTIAL_CLEANUP`: optional and best-effort.
+
+This is disabled by default. Apps opt in per call with
+`ssh_credential_hook_enabled=True` and may override hook playbook names or the
+credential root directory. The prepare hook receives job, target playbook, and
+target host context plus `cpkit_credential_dir`, a job-scoped directory created
+with `0700` permissions.
+
+If the prepare hook writes conventional files such as `id_key`,
+`id_key-cert.pub`, `known_hosts`, or `ssh_config`, cpkit applies them to the
+target playbook through Ansible SSH extra vars while preserving existing
+`ansible_ssh_common_args`. The credential directory is removed after execution
+unless artifact retention on failure is explicitly enabled.
+
+The hook mechanism is intentionally provider-neutral. cpkit does not implement
+Teleport, Vault, Smallstep, or any other SSH CA integration; apps own those
+hook playbooks.
