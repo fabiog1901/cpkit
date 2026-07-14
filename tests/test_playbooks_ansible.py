@@ -2,7 +2,6 @@ import datetime as dt
 import gzip
 import os
 import tempfile
-import threading
 import unittest
 from types import SimpleNamespace
 from pathlib import Path
@@ -19,7 +18,6 @@ from cpkit.playbooks.ansible import (
     _build_ssh_vars_from_credential_dir,
     _effective_playbook_run_options,
     _merge_ssh_credential_vars,
-    _run_async_preserving_signals,
 )
 from cpkit.playbooks.types import Playbook
 
@@ -90,51 +88,6 @@ class FakeSettingsRepo:
 
     def get_setting(self, key):
         return SimpleNamespace(value=self.values[str(key)])
-
-
-class AnsibleSignalTests(unittest.TestCase):
-    def test_preserves_signal_handlers_on_main_thread(self):
-        with (
-            patch("cpkit.playbooks.ansible.ansible_runner.run_async") as run_async,
-            patch("cpkit.playbooks.ansible.signal.getsignal") as getsignal,
-            patch("cpkit.playbooks.ansible.signal.signal") as signal,
-        ):
-            run_async.return_value = ("thread", "runner")
-            getsignal.side_effect = ["sigint-handler", "sigterm-handler"]
-
-            result = _run_async_preserving_signals(playbook="demo")
-
-        self.assertEqual(result, ("thread", "runner"))
-        run_async.assert_called_once_with(playbook="demo")
-        self.assertEqual(getsignal.call_count, 2)
-        self.assertEqual(signal.call_count, 2)
-
-    def test_does_not_restore_signal_handlers_from_worker_thread(self):
-        errors = []
-
-        def target():
-            try:
-                with (
-                    patch(
-                        "cpkit.playbooks.ansible.ansible_runner.run_async",
-                        return_value=("thread", "runner"),
-                    ) as run_async,
-                    patch("cpkit.playbooks.ansible.signal.getsignal") as getsignal,
-                    patch("cpkit.playbooks.ansible.signal.signal") as signal,
-                ):
-                    result = _run_async_preserving_signals(playbook="demo")
-                    self.assertEqual(result, ("thread", "runner"))
-                    run_async.assert_called_once_with(playbook="demo")
-                    getsignal.assert_not_called()
-                    signal.assert_not_called()
-            except Exception as err:
-                errors.append(err)
-
-        thread = threading.Thread(target=target)
-        thread.start()
-        thread.join()
-
-        self.assertEqual(errors, [])
 
 
 class SSHCredentialHookTests(unittest.TestCase):
@@ -273,7 +226,7 @@ class SSHCredentialHookTests(unittest.TestCase):
                 ),
             )
             with patch(
-                "cpkit.playbooks.ansible._run_async_preserving_signals", fake_run_async
+                "cpkit.playbooks.ansible.ansible_runner.run_async", fake_run_async
             ):
                 result = runner.launch_runner(
                     "SERVER_INIT",

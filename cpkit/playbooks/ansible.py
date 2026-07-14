@@ -5,9 +5,7 @@ import gzip
 import json
 import logging
 import os
-import signal
 import shutil
-import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -280,7 +278,7 @@ class AnsibleRunner:
             os.makedirs(job_dir, exist_ok=True)
             if update_job_status:
                 self.repo.update_job(self.job_id, self.running_status)
-            thread, runner = _run_async_preserving_signals(
+            thread, runner = ansible_runner.run_async(
                 quiet=False,
                 verbosity=1,
                 playbook=yaml.safe_load(loaded_playbook.content),
@@ -458,7 +456,7 @@ class LiteAnsibleRunner:
             shutil.rmtree(job_dir, ignore_errors=True)
             os.makedirs(job_dir, exist_ok=True)
 
-            thread, runner = _run_async_preserving_signals(
+            thread, runner = ansible_runner.run_async(
                 quiet=False,
                 verbosity=1,
                 playbook=loaded_playbook.content,
@@ -501,34 +499,6 @@ class LiteAnsibleRunner:
             content=gzip.decompress(playbook.content).decode(),
             version=playbook.version.strftime(STRFTIME),
         )
-
-
-def _run_async_preserving_signals(**kwargs):
-    signal_handlers = _capture_signal_handlers()
-    try:
-        return ansible_runner.run_async(**kwargs)
-    finally:
-        _restore_signal_handlers(signal_handlers)
-
-
-def _capture_signal_handlers():
-    if not _can_manage_signal_handlers():
-        return None
-    return {
-        signal.SIGINT: signal.getsignal(signal.SIGINT),
-        signal.SIGTERM: signal.getsignal(signal.SIGTERM),
-    }
-
-
-def _restore_signal_handlers(signal_handlers) -> None:
-    if signal_handlers is None:
-        return
-    for signal_number, handler in signal_handlers.items():
-        signal.signal(signal_number, handler)
-
-
-def _can_manage_signal_handlers() -> bool:
-    return threading.current_thread() is threading.main_thread()
 
 
 def configure_playbook_run_options(options: PlaybookRunOptions | None = None) -> None:
