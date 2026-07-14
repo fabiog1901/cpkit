@@ -178,6 +178,15 @@ class AnsibleRunner:
                 prepare_playbook = self._load_playbook(
                     self.playbook_run_options.ssh_credential_prepare_playbook
                 )
+                logger.info(
+                    "Running SSH credential prepare playbook '%s' version '%s' "
+                    "for job %s before target playbook '%s' version '%s'",
+                    self.playbook_run_options.ssh_credential_prepare_playbook,
+                    prepare_playbook.version,
+                    self.job_id,
+                    playbook_name,
+                    loaded_playbook.version,
+                )
                 prepare_result = self._run_loaded_playbook(
                     self.playbook_run_options.ssh_credential_prepare_playbook,
                     prepare_playbook,
@@ -195,6 +204,14 @@ class AnsibleRunner:
                         "playbook_version": prepare_result.playbook_version,
                         "status": prepare_result.status,
                     },
+                )
+                logger.info(
+                    "SSH credential prepare playbook '%s' version '%s' "
+                    "finished with status %s for job %s",
+                    self.playbook_run_options.ssh_credential_prepare_playbook,
+                    prepare_result.playbook_version,
+                    prepare_result.status,
+                    self.job_id,
                 )
                 if prepare_result.status != "successful":
                     self.repo.update_job(self.job_id, self.failed_status)
@@ -371,6 +388,15 @@ class AnsibleRunner:
             )
             return
 
+        logger.info(
+            "Running SSH credential cleanup playbook '%s' version '%s' "
+            "for job %s after target playbook '%s' version '%s'",
+            self.playbook_run_options.ssh_credential_cleanup_playbook,
+            cleanup_playbook.version,
+            self.job_id,
+            target_playbook_name,
+            target_playbook_version,
+        )
         cleanup_vars = _build_ssh_credential_hook_vars(
             job_id=self.job_id,
             credential_dir=credential_dir,
@@ -387,9 +413,21 @@ class AnsibleRunner:
         )
         if cleanup_result.status != "successful":
             logger.warning(
-                "SSH credential cleanup playbook '%s' finished with status %s",
+                "SSH credential cleanup playbook '%s' version '%s' "
+                "finished with status %s for job %s",
                 self.playbook_run_options.ssh_credential_cleanup_playbook,
+                cleanup_result.playbook_version,
                 cleanup_result.status,
+                self.job_id,
+            )
+        else:
+            logger.info(
+                "SSH credential cleanup playbook '%s' version '%s' "
+                "finished with status %s for job %s",
+                self.playbook_run_options.ssh_credential_cleanup_playbook,
+                cleanup_result.playbook_version,
+                cleanup_result.status,
+                self.job_id,
             )
         self._record_internal_task(
             "SSH_CREDENTIAL_CLEANUP",
