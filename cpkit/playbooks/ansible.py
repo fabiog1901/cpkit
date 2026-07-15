@@ -128,7 +128,8 @@ class AnsibleRunner:
         elif event["event"] == "runner_on_failed":
             task_data = (
                 f"fatal: [{event['event_data']['host']}]\n"
-                f"{json.dumps(event['event_data']['res']['msg'])}"
+                f"{json.dumps(event['event_data']['res']['msg'])}\n"
+                f"stderr: {event['event_data']['res']['stderr']}"
             )
         elif event["event"] == "runner_item_on_failed":
             task_data = (
