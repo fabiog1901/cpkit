@@ -12,8 +12,9 @@ from psycopg.rows import class_row
 from cpkit.audit import job_id_ctx
 
 from .maintenance import FAIL_ZOMBIE_JOBS_MESSAGE_TYPE, create_fail_zombie_jobs_handler
+from .recurring import get_recurring_messages, recurring_message_map
 from .repository import QUEUE_TABLE
-from .types import QueueMessage
+from .types import QueueMessage, RecurringMessage
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ def create_queue_worker(
     parse_message: ParseMessage | None = None,
     handle_failure: FailureHandler | None = None,
     failed_status: str = "FAILED",
+    recurring_messages: tuple[RecurringMessage, ...] | None = None,
 ) -> Callable[[], Any]:
     """Create a background task that polls the framework queue."""
     maintenance_handlers = {
@@ -39,10 +41,11 @@ def create_queue_worker(
     }
 
     def record_failure(message: QueueMessage, err: Exception) -> None:
-        try:
-            get_repo().update_job(message.msg_id, failed_status)
-        except Exception:
-            logger.exception("Unable to mark job %s as failed", message.msg_id)
+        if not message.is_recurring:
+            try:
+                get_repo().update_job(message.msg_id, failed_status)
+            except Exception:
+                logger.exception("Unable to mark job %s as failed", message.msg_id)
         if handle_failure is not None:
             handle_failure(message, err)
 
@@ -59,6 +62,11 @@ def create_queue_worker(
                 parse_message,
             ),
             handle_failure=record_failure,
+            recurring_messages=(
+                recurring_messages
+                if recurring_messages is not None
+                else get_recurring_messages()
+            ),
         )
 
     return pull_from_mq
@@ -105,12 +113,14 @@ async def run_queue_worker(
     resolve_handler: ResolveHandler | None = None,
     parse_message: ParseMessage | None = None,
     handle_failure: FailureHandler | None = None,
+    recurring_messages: tuple[RecurringMessage, ...] = (),
     poll_seconds: float = 5,
     jitter_min: float = 0.7,
     jitter_max: float = 1.3,
 ) -> None:
     """Continuously claim due queue messages and dispatch them to handlers."""
     running_handlers: set[asyncio.Future] = set()
+    recurring_configs = recurring_message_map(recurring_messages)
     try:
         while True:
             await asyncio.sleep(poll_seconds * random.uniform(jitter_min, jitter_max))
@@ -119,7 +129,13 @@ async def run_queue_worker(
                 with get_pool().connection() as conn:
                     with conn.cursor(row_factory=class_row(QueueMessage)) as cur:
                         with conn.transaction():
-                            message = _claim_due_message(cur)
+                            message = _claim_due_recurring_message(
+                                cur,
+                                recurring_configs,
+                            )
+                            delete_after_dispatch = message is None
+                            if message is None:
+                                message = _claim_due_message(cur)
                             if message is None:
                                 continue
 
@@ -150,10 +166,11 @@ async def run_queue_worker(
                             running_handlers.add(future)
                             future.add_done_callback(running_handlers.discard)
                             future.add_done_callback(_log_handler_crash)
-                            cur.execute(
-                                f"DELETE FROM {QUEUE_TABLE} WHERE msg_id = %s;",
-                                (message.msg_id,),
-                            )
+                            if delete_after_dispatch:
+                                cur.execute(
+                                    f"DELETE FROM {QUEUE_TABLE} WHERE msg_id = %s;",
+                                    (message.msg_id,),
+                                )
             except Exception:
                 logger.exception("Unexpected failure while polling the message queue")
 
@@ -168,14 +185,68 @@ def _claim_due_message(cur) -> QueueMessage | None:
     return cur.execute(f"""
         SELECT *
         FROM {QUEUE_TABLE}
-        WHERE now() > start_after
+        WHERE is_recurring = false
+            AND now() > start_after
         LIMIT 1
         FOR UPDATE SKIP LOCKED
         """).fetchone()
 
 
+def _claim_due_recurring_message(
+    cur,
+    recurring_configs: Mapping[str, RecurringMessage],
+) -> QueueMessage | None:
+    if not recurring_configs:
+        return None
+
+    message = cur.execute(
+        f"""
+        SELECT *
+        FROM {QUEUE_TABLE}
+        WHERE is_recurring = true
+            AND msg_type = ANY(%s)
+            AND now() > start_after
+        ORDER BY start_after
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+        """,
+        (list(recurring_configs),),
+    ).fetchone()
+    if message is None:
+        return None
+
+    recurring_config = recurring_configs[message.msg_type]
+    previous_start_after = message.start_after
+    rescheduled = cur.execute(
+        f"""
+        UPDATE {QUEUE_TABLE}
+        SET start_after = now()
+            + (%s * INTERVAL '1s')
+            + (random() * (%s * INTERVAL '1s'))
+        WHERE msg_id = %s
+        RETURNING *
+        """,
+        (
+            recurring_config.interval_seconds,
+            recurring_config.jitter_seconds,
+            message.msg_id,
+        ),
+    ).fetchone()
+    logger.info(
+        "Claimed and rescheduled recurring queue message %s of type %s "
+        "from %s to %s using interval=%ss jitter=%ss",
+        rescheduled.msg_id,
+        rescheduled.msg_type,
+        previous_start_after,
+        rescheduled.start_after,
+        recurring_config.interval_seconds,
+        recurring_config.jitter_seconds,
+    )
+    return rescheduled
+
+
 def _set_current_job_id(message: QueueMessage):
-    if message.msg_type == FAIL_ZOMBIE_JOBS_MESSAGE_TYPE:
+    if message.is_recurring or message.msg_type == FAIL_ZOMBIE_JOBS_MESSAGE_TYPE:
         return None
     return job_id_ctx.set(message.msg_id)
 

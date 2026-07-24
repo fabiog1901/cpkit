@@ -4,8 +4,15 @@ from typing import Any
 
 from cpkit.db import execute_stmt, fetch_all, fetch_one
 
-from .maintenance import FAIL_ZOMBIE_JOBS_MESSAGE_TYPE
-from .types import IntID, Job, JobID, JobStatsResponse, LinkedResourceRef, Task
+from .types import (
+    IntID,
+    Job,
+    JobID,
+    JobStatsResponse,
+    LinkedResourceRef,
+    RecurringMessage,
+    Task,
+)
 
 QUEUE_TABLE = "cpkit.mq"
 JOBS_TABLE = "cpkit.jobs"
@@ -27,9 +34,9 @@ class QueueRepositoryMixin:
         execute_stmt(
             f"""
             INSERT INTO {QUEUE_TABLE}
-                (msg_type, msg_data, created_by, start_after)
+                (msg_type, msg_data, created_by, start_after, is_recurring)
             VALUES
-                (%s, %s, %s, now() + (%s * INTERVAL '1s'))
+                (%s, %s, %s, now() + (%s * INTERVAL '1s'), false)
             """,
             (
                 _message_type_value(msg_type),
@@ -38,6 +45,46 @@ class QueueRepositoryMixin:
                 start_after_seconds,
             ),
             operation="jobs.enqueue_message",
+        )
+
+    def ensure_recurring_messages(
+        self,
+        messages: tuple[RecurringMessage, ...],
+    ) -> None:
+        """Ensure singleton recurring MQ rows exist."""
+        for message in messages:
+            self.ensure_recurring_message(message)
+
+    def ensure_recurring_message(self, message: RecurringMessage) -> None:
+        """Ensure one recurring MQ row exists for a message type."""
+        execute_stmt(
+            f"""
+            INSERT INTO {QUEUE_TABLE}
+                (msg_type, msg_data, created_by, start_after, is_recurring)
+            SELECT
+                %s,
+                %s,
+                %s,
+                now()
+                    + (%s * INTERVAL '1s')
+                    + (random() * (%s * INTERVAL '1s')),
+                true
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM {QUEUE_TABLE}
+                WHERE msg_type = %s
+                    AND is_recurring = true
+            )
+            """,
+            (
+                _message_type_value(message.msg_type),
+                _payload_value(message.payload),
+                message.created_by or "system",
+                message.interval_seconds,
+                message.jitter_seconds,
+                _message_type_value(message.msg_type),
+            ),
+            operation="jobs.ensure_recurring_message",
         )
 
 
@@ -53,7 +100,9 @@ class QueueJobRepositoryMixin(QueueRepositoryMixin):
         payload_value = _payload_value(payload)
         playbook_version = payload_value.get("playbook_version")
         job_description = {
-            key: value for key, value in payload_value.items() if key != "playbook_version"
+            key: value
+            for key, value in payload_value.items()
+            if key != "playbook_version"
         }
         command_type_value = _message_type_value(command_type)
         return fetch_one(
@@ -61,9 +110,9 @@ class QueueJobRepositoryMixin(QueueRepositoryMixin):
             WITH
             create_new_job AS (
                 INSERT INTO {QUEUE_TABLE}
-                    (msg_type, msg_data, created_by)
+                    (msg_type, msg_data, created_by, is_recurring)
                 VALUES
-                    (%s, %s, %s)
+                    (%s, %s, %s, false)
                 RETURNING msg_id
             )
             INSERT INTO {JOBS_TABLE}
@@ -177,19 +226,13 @@ class JobsRepositoryMixin:
     def fail_zombie_jobs(self) -> list[IntID]:
         return fetch_all(
             f"""
-            WITH
-            fail_zombie_jobs AS (
-                INSERT INTO {QUEUE_TABLE} (msg_type, start_after)
-                VALUES (%s, now() + INTERVAL '300s' + (random() * INTERVAL '10s'))
-                RETURNING 1
-            )
             UPDATE {JOBS_TABLE}
             SET status = %s
             WHERE status in (%s, %s)
                 AND now() > updated_at + INTERVAL '300s'
             RETURNING job_id AS id
             """,
-            (FAIL_ZOMBIE_JOBS_MESSAGE_TYPE, "FAILED", "RUNNING", "QUEUED"),
+            ("FAILED", "RUNNING", "QUEUED"),
             IntID,
         )
 

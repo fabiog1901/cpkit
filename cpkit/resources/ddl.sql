@@ -9,15 +9,24 @@ CREATE TABLE IF NOT EXISTS cpkit.mq (
     msg_data JSONB NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by TEXT NOT NULL DEFAULT 'system',
+    is_recurring BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_mq PRIMARY KEY (msg_id)
 );
 
-INSERT INTO cpkit.mq (msg_type, start_after)
-SELECT 'FAIL_ZOMBIE_JOBS', now() + INTERVAL '300s' + (random() * INTERVAL '10s')
+ALTER TABLE cpkit.mq
+ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN NOT NULL DEFAULT false;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_mq_recurring_msg_type
+ON cpkit.mq (msg_type)
+WHERE is_recurring = true;
+
+INSERT INTO cpkit.mq (msg_type, msg_data, created_by, start_after, is_recurring)
+SELECT 'FAIL_ZOMBIE_JOBS', '{}', 'system', now() + INTERVAL '300s' + (random() * INTERVAL '10s'), true
 WHERE NOT EXISTS (
     SELECT 1
     FROM cpkit.mq
     WHERE msg_type = 'FAIL_ZOMBIE_JOBS'
+        AND is_recurring = true
 );
 
 CREATE TABLE IF NOT EXISTS cpkit.jobs (

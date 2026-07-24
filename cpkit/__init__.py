@@ -13,6 +13,7 @@ from .dependencies import (
     require_readonly,
     require_user,
 )
+from .jobs import RecurringMessage
 from .playbooks import (
     PlaybookRunOptions,
     configure_playbook_run_options,
@@ -28,6 +29,7 @@ __all__ = [
     "ApplicationCLI",
     "CpkitBundle",
     "PlaybookRunOptions",
+    "RecurringMessage",
     "STRFTIME",
     "TS_FORMAT",
     "configure_cpkit_dependencies",

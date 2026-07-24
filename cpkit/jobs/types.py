@@ -1,5 +1,6 @@
 """Generic job queue data types."""
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -15,6 +16,18 @@ class QueueMessage(BaseModel):
     msg_data: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     created_by: str
+    is_recurring: bool = False
+
+
+@dataclass(frozen=True)
+class RecurringMessage:
+    """Configuration for a singleton recurring queue message."""
+
+    msg_type: str
+    interval_seconds: int
+    jitter_seconds: int = 0
+    payload: dict[str, Any] | None = None
+    created_by: str | None = None
 
 
 class JobID(BaseModel):

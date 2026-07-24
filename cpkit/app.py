@@ -12,6 +12,11 @@ from fastapi.staticfiles import StaticFiles
 
 from cpkit.bundle import CpkitBundle
 from cpkit.db import close_db, initialize_postgres
+from cpkit.jobs import (
+    RecurringMessage,
+    configure_recurring_messages,
+    get_recurring_messages,
+)
 from cpkit.logging import configure_logging, request_logging_middleware
 from cpkit.playbooks import (
     configure_playbook_run_options,
@@ -37,6 +42,7 @@ def create_cpkit_app(
     routers: Iterable[APIRouter] = (),
     startup_hooks: Iterable[StartupHook] = (),
     background_tasks: Iterable[BackgroundTaskFactory] = (),
+    recurring_messages: Iterable[RecurringMessage] = (),
     static_directory: str | Path | None = None,
     app_static_directory: str | Path | None = None,
     api_prefix: str = "/api",
@@ -58,6 +64,8 @@ def create_cpkit_app(
             raise ValueError("repo_class or get_repo is required.")
 
         repo = get_configured_repo()
+        configure_recurring_messages(recurring_messages)
+        repo.ensure_recurring_messages(get_recurring_messages())
         configure_playbook_run_options(load_playbook_run_options_from_settings(repo))
         configure_logging(
             repo,
