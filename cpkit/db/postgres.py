@@ -2,9 +2,10 @@
 
 import logging
 import os
-from typing import Any
+from contextlib import contextmanager
+from typing import Any, Iterator
 
-from psycopg import DatabaseError, InterfaceError, OperationalError
+from psycopg import Connection, DatabaseError, Error, InterfaceError, OperationalError
 from psycopg import errors as psycopg_errors
 from psycopg.abc import Dumper
 from psycopg.pq import Format
@@ -24,6 +25,63 @@ from cpkit.errors import (
 CPKIT_DB_URL = os.getenv("CPKIT_DB_URL")
 pool: ConnectionPool | None = None
 logger = logging.getLogger(__name__)
+
+
+class DatabaseTransaction:
+    """Query helpers bound to a single database transaction."""
+
+    def __init__(self, conn: Connection):
+        self._conn = conn
+
+    def execute_stmt(
+        self,
+        stmt: str,
+        bind_args: tuple = (),
+        *,
+        operation: str | None = None,
+    ) -> None:
+        _execute_stmt(self._conn, stmt, bind_args, operation=operation)
+
+    def fetch_all(
+        self,
+        stmt: str,
+        bind_args: tuple,
+        row_type,
+        *,
+        operation: str | None = None,
+    ) -> list[Any]:
+        return _fetch_all(
+            self._conn,
+            stmt,
+            bind_args,
+            row_type,
+            operation=operation,
+        )
+
+    def fetch_one(
+        self,
+        stmt: str,
+        bind_args: tuple,
+        row_type,
+        *,
+        operation: str | None = None,
+    ) -> Any | None:
+        return _fetch_one(
+            self._conn,
+            stmt,
+            bind_args,
+            row_type,
+            operation=operation,
+        )
+
+    def fetch_scalar(
+        self,
+        stmt: str,
+        bind_args: tuple = (),
+        *,
+        operation: str | None = None,
+    ) -> Any | None:
+        return _fetch_scalar(self._conn, stmt, bind_args, operation=operation)
 
 
 class Dict2JsonbDumper(JsonbDumper):
@@ -54,13 +112,7 @@ def execute_stmt(
 ) -> None:
     with get_pool().connection() as conn:
         _register_dumpers(conn)
-
-        with conn.cursor() as cur:
-            try:
-                stmt = _normalize_stmt(stmt)
-                cur.execute(stmt, bind_args)
-            except Exception as err:
-                raise translate_database_error(err, operation) from err
+        _execute_stmt(conn, stmt, bind_args, operation=operation)
 
 
 def fetch_all(
@@ -72,14 +124,7 @@ def fetch_all(
 ) -> list[Any]:
     with get_pool().connection() as conn:
         _register_dumpers(conn)
-
-        with conn.cursor(row_factory=class_row(row_type)) as cur:
-            try:
-                stmt = _normalize_stmt(stmt)
-                cur.execute(stmt, bind_args)
-                return cur.fetchall()
-            except Exception as err:
-                raise translate_database_error(err, operation) from err
+        return _fetch_all(conn, stmt, bind_args, row_type, operation=operation)
 
 
 def fetch_one(
@@ -91,14 +136,7 @@ def fetch_one(
 ) -> Any | None:
     with get_pool().connection() as conn:
         _register_dumpers(conn)
-
-        with conn.cursor(row_factory=class_row(row_type)) as cur:
-            try:
-                stmt = _normalize_stmt(stmt)
-                cur.execute(stmt, bind_args)
-                return cur.fetchone()
-            except Exception as err:
-                raise translate_database_error(err, operation) from err
+        return _fetch_one(conn, stmt, bind_args, row_type, operation=operation)
 
 
 def fetch_scalar(
@@ -109,17 +147,97 @@ def fetch_scalar(
 ) -> Any | None:
     with get_pool().connection() as conn:
         _register_dumpers(conn)
+        return _fetch_scalar(conn, stmt, bind_args, operation=operation)
 
-        with conn.cursor() as cur:
-            try:
-                stmt = _normalize_stmt(stmt)
-                cur.execute(stmt, bind_args)
-                row = cur.fetchone()
-                if row is None:
-                    return None
-                return row[0]
-            except Exception as err:
-                raise translate_database_error(err, operation) from err
+
+@contextmanager
+def transaction(
+    *,
+    operation: str | None = None,
+) -> Iterator[DatabaseTransaction]:
+    """Wrap ``conn.transaction()`` with cpkit's bound query helpers.
+
+    The transaction commits when the context exits normally and rolls back when
+    an exception leaves the context.
+    """
+    with get_pool().connection() as conn:
+        _register_dumpers(conn)
+
+        try:
+            with conn.transaction():
+                yield DatabaseTransaction(conn)
+        except RepositoryError:
+            raise
+        except Error as err:
+            raise translate_database_error(err, operation) from err
+
+
+def _execute_stmt(
+    conn: Connection,
+    stmt: str,
+    bind_args: tuple = (),
+    *,
+    operation: str | None = None,
+) -> None:
+    with conn.cursor() as cur:
+        try:
+            stmt = _normalize_stmt(stmt)
+            cur.execute(stmt, bind_args)
+        except Exception as err:
+            raise translate_database_error(err, operation) from err
+
+
+def _fetch_all(
+    conn: Connection,
+    stmt: str,
+    bind_args: tuple,
+    row_type,
+    *,
+    operation: str | None = None,
+) -> list[Any]:
+    with conn.cursor(row_factory=class_row(row_type)) as cur:
+        try:
+            stmt = _normalize_stmt(stmt)
+            cur.execute(stmt, bind_args)
+            return cur.fetchall()
+        except Exception as err:
+            raise translate_database_error(err, operation) from err
+
+
+def _fetch_one(
+    conn: Connection,
+    stmt: str,
+    bind_args: tuple,
+    row_type,
+    *,
+    operation: str | None = None,
+) -> Any | None:
+    with conn.cursor(row_factory=class_row(row_type)) as cur:
+        try:
+            stmt = _normalize_stmt(stmt)
+            cur.execute(stmt, bind_args)
+            return cur.fetchone()
+        except Exception as err:
+            raise translate_database_error(err, operation) from err
+
+
+def _fetch_scalar(
+    conn: Connection,
+    stmt: str,
+    bind_args: tuple = (),
+    *,
+    operation: str | None = None,
+) -> Any | None:
+    with conn.cursor() as cur:
+        try:
+            stmt = _normalize_stmt(stmt)
+            cur.execute(stmt, bind_args)
+            row = cur.fetchone()
+            if row is None:
+                return None
+            return row[0]
+        except Exception as err:
+            raise translate_database_error(err, operation) from err
 
 
 def _register_dumpers(conn) -> None:

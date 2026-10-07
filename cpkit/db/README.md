@@ -22,3 +22,26 @@ repository exceptions.
 3. Database exceptions are translated into `cpkit.errors.repository` types.
 4. Service layers translate repository errors into user-facing service errors.
 
+## Explicit Transactions
+
+Use `transaction()` when several statements must commit or roll back together.
+The yielded object exposes the same query helpers, all bound to one connection:
+
+```python
+from cpkit.db import transaction
+
+with transaction(operation="widgets.transfer") as tx:
+    tx.execute_stmt(
+        "UPDATE widgets SET owner_id = %s WHERE widget_id = %s",
+        (new_owner_id, widget_id),
+    )
+    widget = tx.fetch_one(
+        "SELECT * FROM widgets WHERE widget_id = %s",
+        (widget_id,),
+        Widget,
+    )
+```
+
+The context commits after a normal exit and rolls back if an exception escapes.
+Database failures use the same repository-error translation as the standalone
+helpers.
