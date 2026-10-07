@@ -22,7 +22,7 @@ python tools/codemap.py --write
 
 | Package | Modules | Classes | Functions | Routes |
 | --- | ---: | ---: | ---: | ---: |
-| `cpkit` | 65 | 82 | 63 | 0 |
+| `cpkit` | 67 | 85 | 74 | 0 |
 
 ## API Routes
 
@@ -64,12 +64,12 @@ python tools/codemap.py --write
 | `cpkit/cli/__init__.py` | Reusable command-line helpers for cpkit applications. |
 | `cpkit/cli/__main__.py` | Module entry point for cpkit CLI helpers. |
 | `cpkit/cli/base.py` | Base application CLI for cpkit apps.; classes: ApplicationCLI; functions: main |
-| `cpkit/cli/migration.py` | Database migration and preflight helpers for cpkit applications.; functions: apply_sql_file, check_database, check_table |
+| `cpkit/cli/schema.py` | Database schema and playbook initialization helpers for cpkit applications.; functions: apply_sql_file, check_database, check_table, disable_oidc, initialize_playbooks |
 | `cpkit/cli/server.py` | ASGI server helpers for cpkit application CLIs.; functions: serve_uvicorn |
 | `cpkit/config/__init__.py` | Configuration helpers. |
 | `cpkit/config/env.py` | Helpers for parsing environment-style configuration values.; functions: as_bool, safe_csv_set, safe_json_string_dict |
 | `cpkit/db/__init__.py` | Database infrastructure helpers. |
-| `cpkit/db/postgres.py` | Low-level Postgres metadata database infrastructure.; classes: Dict2JsonbDumper, SelectorDumper; functions: execute_stmt, fetch_all, fetch_one, fetch_scalar, initialize_postgres, get_pool, close_db, translate_database_error |
+| `cpkit/db/postgres.py` | Low-level Postgres metadata database infrastructure.; classes: DatabaseTransaction, Dict2JsonbDumper, SelectorDumper; functions: execute_stmt, fetch_all, fetch_one, fetch_scalar, transaction, initialize_postgres, get_pool, close_db, translate_database_error |
 | `cpkit/dependencies.py` | Application-scoped dependency callables exposed by cpkit.; functions: configure_cpkit_dependencies, require_authenticated, require_user, require_readonly, require_admin, get_access_scope, get_audit_actor |
 | `cpkit/errors/__init__.py` | Shared framework exception types. |
 | `cpkit/errors/http.py` | FastAPI translation helpers for framework service errors.; functions: raise_http_from_service_error |
@@ -77,22 +77,24 @@ python tools/codemap.py --write
 | `cpkit/errors/service.py` | Service-layer exception types and repository error translation.; classes: ServiceError, ServiceUnavailableError, ServiceConflictError, ServiceValidationError, ServiceAuthorizationError, ServiceNotFoundError; functions: from_repository_error |
 | `cpkit/jobs/__init__.py` | Framework-owned job queue primitives. |
 | `cpkit/jobs/maintenance.py` | Framework job maintenance handlers.; functions: create_fail_zombie_jobs_handler |
+| `cpkit/jobs/recurring.py` | Recurring singleton queue message configuration.; functions: configure_recurring_messages, get_recurring_messages, recurring_message_map |
 | `cpkit/jobs/repository.py` | Repository helpers for the framework message queue.; classes: QueueRepositoryMixin, QueueJobRepositoryMixin, JobsRepositoryMixin |
 | `cpkit/jobs/router.py` | FastAPI routes for framework job management.; functions: create_jobs_router |
 | `cpkit/jobs/service.py` | Service helpers for framework job history and rescheduling.; classes: JobsService |
-| `cpkit/jobs/types.py` | Generic job queue data types.; classes: QueueMessage, JobID, IntID, LinkedResourceRef, JobStatsResponse, Job, Task, JobDetailsResponse, JobRescheduleResponse |
+| `cpkit/jobs/types.py` | Generic job queue data types.; classes: QueueMessage, RecurringMessage, JobID, IntID, LinkedResourceRef, JobStatsResponse, Job, Task, JobDetailsResponse, JobRescheduleResponse |
 | `cpkit/jobs/worker.py` | Generic queue worker loop.; functions: create_queue_worker, run_queue_worker |
 | `cpkit/logging/__init__.py` | Logging setup and request context helpers. |
 | `cpkit/logging/context.py` | Request-aware logging context.; classes: RequestIDFilter, ShorthandFormatter |
 | `cpkit/logging/middleware.py` | FastAPI request logging middleware helpers.; functions: request_logging_middleware |
 | `cpkit/logging/setup.py` | Logging configuration for operational messages.; functions: configure_logging |
 | `cpkit/playbooks/__init__.py` | Versioned playbook models and repository helpers. |
-| `cpkit/playbooks/ansible.py` | Ansible runner helpers for framework-managed playbooks.; classes: LoadedPlaybook, RunnerResult, LiteRunnerResult, AnsibleRunner, LiteAnsibleRunner; functions: run_playbook, run_playbook_lite |
+| `cpkit/playbooks/ansible.py` | Ansible runner helpers for framework-managed playbooks.; classes: LoadedPlaybook, RunnerResult, LiteRunnerResult, PlaybookRunOptions, AnsibleRunner, LiteAnsibleRunner; functions: configure_playbook_run_options, get_playbook_run_options, load_playbook_run_options_from_settings, run_playbook, run_playbook_lite |
 | `cpkit/playbooks/repository.py` | Repository mixin for framework-owned versioned playbooks.; classes: PlaybooksRepositoryMixin |
 | `cpkit/playbooks/router.py` | FastAPI routes for framework playbook management.; functions: create_playbooks_router |
 | `cpkit/playbooks/service.py` | Service helpers for versioned playbook management.; classes: PlaybooksService |
 | `cpkit/playbooks/types.py` | Generic playbook data types.; classes: PlaybookOverview, Playbook, PlaybookResponse, PlaybookListResponse, PlaybookVersionResponse, PlaybookSaveRequest |
 | `cpkit/repository.py` | Repository factory helpers for cpkit applications.; classes: CPKitRepo; functions: configure_repository, get_repo |
+| `cpkit/resources/__init__.py` | Packaged cpkit resource files.; functions: cpkit_resources_directory, cpkit_ddl_path |
 | `cpkit/settings/__init__.py` | Settings models and repository helpers. |
 | `cpkit/settings/keys.py` | Framework-owned settings keys.; classes: FrameworkSettingKey |
 | `cpkit/settings/repository.py` | Repository mixin for a key/value settings table.; classes: SettingsRepositoryMixin |

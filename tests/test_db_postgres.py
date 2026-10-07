@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 from psycopg import OperationalError
+from psycopg.errors import SerializationFailure
 
 from cpkit.db import transaction
 from cpkit.errors import RepositoryUnavailableError
@@ -82,6 +83,27 @@ class PostgresTransactionTests(unittest.TestCase):
                     pass
 
         self.assertEqual(raised.exception.operation, "example.batch")
+        self.assertTrue(raised.exception.retryable)
+
+    def test_transaction_preserves_retryable_serialization_failure(self):
+        self.transaction_context.__exit__.side_effect = SerializationFailure(
+            "restart transaction"
+        )
+
+        with (
+            patch("cpkit.db.postgres.get_pool", return_value=self.pool),
+            patch("cpkit.db.postgres._register_dumpers"),
+            patch("cpkit.db.postgres.logger.exception"),
+        ):
+            with self.assertRaises(RepositoryUnavailableError) as raised:
+                with transaction(operation="host.decommission.request"):
+                    pass
+
+        self.assertEqual(
+            raised.exception.operation,
+            "host.decommission.request",
+        )
+        self.assertTrue(raised.exception.retryable)
 
 
 if __name__ == "__main__":

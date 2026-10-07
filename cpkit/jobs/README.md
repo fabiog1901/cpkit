@@ -28,6 +28,45 @@ jobs.
 When a normal queue message is being processed, the worker sets the current
 audit job context so audit records can store the job id separately from details.
 
+## Transactional Scheduling
+
+Applications can make job scheduling atomic with their own database writes by
+passing the `DatabaseTransaction` yielded by `cpkit.db.transaction()` to
+`enqueue_command()`:
+
+```python
+from cpkit.db import transaction
+
+with transaction(operation="host.decommission.request") as tx:
+    tx.execute_stmt(
+        "UPDATE hosts SET status = %s WHERE hostname = %s",
+        ("DECOMMISSIONING", hostname),
+    )
+    job = repo.enqueue_command(
+        QueueCommand.SERVER_DECOMM,
+        request,
+        actor_id,
+        tx=tx,
+    )
+
+# The job is committed before it is returned as successfully scheduled.
+return job
+```
+
+The application owns the transaction. `enqueue_command()` uses the supplied
+transaction's bound query helper and does not acquire another connection,
+commit, or roll back. Its returned job id is provisional until the surrounding
+context commits. An exception from enqueue, a later business write, or commit
+causes the normal transaction error and rollback behavior. Omitting `tx`
+preserves standalone enqueue behavior.
+
+The business tables and CPKit tables must be reachable through the same database
+transaction. Keep remote work and worker execution outside this transaction.
+Retryable serialization failures require retrying the complete business
+operation in a fresh transaction; an uncertain commit result requires an
+application reconciliation or idempotency policy before retrying. Transaction
+objects are context-bound and must not be retained or passed to workers.
+
 ## Recurring Messages
 
 Recurring messages are singleton rows in `cpkit.mq` marked with

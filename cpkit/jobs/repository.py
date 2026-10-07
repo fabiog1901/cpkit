@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from cpkit.db import execute_stmt, fetch_all, fetch_one
+from cpkit.db import DatabaseTransaction, execute_stmt, fetch_all, fetch_one
 
 from .types import (
     IntID,
@@ -96,7 +96,10 @@ class QueueJobRepositoryMixin(QueueRepositoryMixin):
         command_type: Any,
         payload: Any,
         created_by: str,
+        *,
+        tx: DatabaseTransaction | None = None,
     ) -> JobID:
+        """Enqueue a job, optionally as part of a caller-owned transaction."""
         payload_value = _payload_value(payload)
         playbook_version = payload_value.get("playbook_version")
         job_description = {
@@ -105,7 +108,8 @@ class QueueJobRepositoryMixin(QueueRepositoryMixin):
             if key != "playbook_version"
         }
         command_type_value = _message_type_value(command_type)
-        return fetch_one(
+        query = tx.fetch_one if tx is not None else fetch_one
+        return query(
             f"""
             WITH
             create_new_job AS (

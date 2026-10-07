@@ -98,6 +98,15 @@ Good options include:
 Set `CPKIT_DB_URL` to the database URL before running schema initialization or
 serving an app.
 
+The default test suite uses isolated unit tests. Transactional queue integration
+tests can additionally run against a dedicated PostgreSQL test database; they
+apply CPKit's schema and create a `cpkit.transaction_test_state` table:
+
+```bash
+CPKIT_INTEGRATION_DB_URL='postgresql://...' \
+    poetry run python -m unittest tests.test_jobs_transaction_integration -v
+```
+
 ## Try The TODO Example
 
 The best way to understand cpkit is to run the TODO example:
