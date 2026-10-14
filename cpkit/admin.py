@@ -19,6 +19,7 @@ def create_cpkit_admin_router(
     handle_service_error: Callable[[Exception], None],
     service_error_type: type[Exception] = Exception,
     prefix: str = "/admin",
+    api_keys_router: APIRouter | None = None,
     dependencies: Sequence[Any] | None = None,
 ) -> APIRouter:
     """Create the standard admin routes provided by cpkit."""
@@ -43,7 +44,9 @@ def create_cpkit_admin_router(
         )
     )
     router.include_router(
-        create_api_keys_router(
+        api_keys_router
+        if api_keys_router is not None
+        else create_api_keys_router(
             get_service=get_api_keys_service,
             get_audit_actor=get_audit_actor,
             handle_service_error=handle_service_error,

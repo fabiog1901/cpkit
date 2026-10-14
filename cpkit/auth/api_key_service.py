@@ -5,6 +5,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
+from cpkit.db import DatabaseTransaction
 from cpkit.errors import (
     RepositoryError,
     ServiceNotFoundError,
@@ -49,6 +50,8 @@ class ApiKeysService:
         self,
         actor_id: str,
         request: ApiKeyCreateRequest,
+        *,
+        tx: DatabaseTransaction | None = None,
     ) -> ApiKeyCreateResponse:
         valid_until = self._normalize_valid_until(request.valid_until)
 
@@ -67,6 +70,7 @@ class ApiKeysService:
                 ),
                 owner=actor_id,
                 encrypted_secret_access_key=encrypt_secret(secret_access_key),
+                **({"tx": tx} if tx is not None else {}),
             )
         except RepositoryError as err:
             raise from_repository_error(
@@ -77,7 +81,7 @@ class ApiKeysService:
                 fallback_message="Unable to create API key.",
             ) from err
 
-        if self.created_hook is not None:
+        if tx is None and self.created_hook is not None:
             self.created_hook(
                 self.repo,
                 actor_id,
@@ -97,9 +101,13 @@ class ApiKeysService:
             secret_access_key=secret_access_key,
         )
 
-    def delete_api_key(self, actor_id: str, access_key: str) -> None:
+    def delete_api_key(
+        self, actor_id: str, access_key: str, *, tx: DatabaseTransaction | None = None
+    ) -> None:
         try:
-            existing_key = self.repo.get_api_key(access_key)
+            existing_key = self.repo.get_api_key(
+                access_key, **({"tx": tx, "for_update": True} if tx is not None else {})
+            )
         except RepositoryError as err:
             raise from_repository_error(
                 err,
@@ -111,7 +119,9 @@ class ApiKeysService:
             raise ServiceNotFoundError("API key not found.")
 
         try:
-            self.repo.delete_api_key(access_key)
+            self.repo.delete_api_key(
+                access_key, **({"tx": tx} if tx is not None else {})
+            )
         except RepositoryError as err:
             raise from_repository_error(
                 err,
@@ -119,7 +129,7 @@ class ApiKeysService:
                 fallback_message=f"Unable to delete API key '{access_key}'.",
             ) from err
 
-        if self.deleted_hook is not None:
+        if tx is None and self.deleted_hook is not None:
             self.deleted_hook(
                 self.repo,
                 actor_id,

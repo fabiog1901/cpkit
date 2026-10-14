@@ -1,6 +1,6 @@
 """Repository mixins for framework-owned auth tables."""
 
-from cpkit.db import execute_stmt, fetch_all, fetch_one
+from cpkit.db import DatabaseTransaction, execute_stmt, fetch_all, fetch_one
 
 from .types import ApiKeyRecord, ApiKeySummary, OIDCSessionRecord, RoleGroupMap
 
@@ -13,16 +13,20 @@ class APIKeysRepositoryMixin:
     api_key_record_type = ApiKeyRecord
     api_key_summary_type = ApiKeySummary
 
-    def get_api_key(self, access_key: str):
-        return fetch_one(
-            f"""
-                    SELECT access_key, encrypted_secret_access_key, owner, valid_until, roles
-                    FROM {API_KEYS_TABLE}
-                    WHERE access_key = %s
-                    """,
-            (access_key,),
-            self.api_key_record_type,
-            operation="api_keys.get",
+    def get_api_key(
+        self,
+        access_key: str,
+        *,
+        tx: DatabaseTransaction | None = None,
+        for_update: bool = False,
+    ):
+        if for_update and tx is None:
+            raise ValueError("Locking an API key requires a caller-owned transaction.")
+        sql = f"SELECT access_key, encrypted_secret_access_key, owner, valid_until, roles FROM {API_KEYS_TABLE} WHERE access_key = %s"
+        if for_update:
+            sql += " FOR UPDATE"
+        return (tx.fetch_one if tx is not None else fetch_one)(
+            sql, (access_key,), self.api_key_record_type, operation="api_keys.get"
         )
 
     def list_api_keys(self, access_key: str | None = None):
@@ -51,8 +55,9 @@ class APIKeysRepositoryMixin:
         *,
         owner: str,
         encrypted_secret_access_key: bytes,
+        tx: DatabaseTransaction | None = None,
     ):
-        return fetch_one(
+        return (tx.fetch_one if tx is not None else fetch_one)(
             f"""
                     INSERT INTO {API_KEYS_TABLE} (
                         access_key,
@@ -75,8 +80,10 @@ class APIKeysRepositoryMixin:
             operation="api_keys.create",
         )
 
-    def delete_api_key(self, access_key: str) -> None:
-        execute_stmt(
+    def delete_api_key(
+        self, access_key: str, *, tx: DatabaseTransaction | None = None
+    ) -> None:
+        (tx.execute_stmt if tx is not None else execute_stmt)(
             f"""
                 DELETE
                 FROM {API_KEYS_TABLE}

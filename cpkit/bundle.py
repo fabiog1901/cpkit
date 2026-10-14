@@ -69,6 +69,7 @@ class CpkitBundle:
 
 def create_cpkit_bundle(
     *,
+    api_keys_router: APIRouter | None = None,
     command_models: CommandModelMap | None = None,
     command_handlers: Mapping[Any, QueueHandler] | None = None,
     parse_job_payload: PayloadParser | None = None,
@@ -138,6 +139,7 @@ def create_cpkit_bundle(
         )
 
     admin_router = create_cpkit_admin_router(
+        api_keys_router=api_keys_router,
         get_api_keys_service=get_api_keys_service,
         get_settings_service=get_settings_service,
         get_playbooks_service=get_playbooks_service,
