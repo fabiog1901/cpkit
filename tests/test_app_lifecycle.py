@@ -336,15 +336,49 @@ class AppLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(app.state.cpkit_runtime.status.complete)
         self.assertEqual(self.events, ["handler_used_pool", "close"])
 
-    async def test_background_iterable_is_consumed_after_startup_hooks(self):
+    async def test_background_factories_are_invoked_after_startup_hooks(self):
         def startup():
             self.events.append("startup")
 
-        def factories():
+        def factory():
             self.assertEqual(self.events, ["startup"])
-            yield lambda: asyncio.sleep(0)
+            return asyncio.sleep(0)
+
+        def factories():
+            yield factory
 
         app = self.app(startup_hooks=(startup,), background_tasks=factories())
         async with app.router.lifespan_context(app):
             pass
         self.assertEqual(self.events, ["startup", "close"])
+
+    async def _check_direct_worker_startup_failure(self, *, lazy):
+        worker, started, release, calls = self.blocked_worker()
+        self.addAsyncCleanup(worker.drain, timeout=2)
+
+        async def startup():
+            await worker.dispatch_one(message_id=1)
+            raise RuntimeError("startup failed")
+
+        factories = (item for item in (worker,)) if lazy else (worker,)
+        app = self.app(background_tasks=factories, startup_hooks=(startup,))
+        entering = asyncio.create_task(app.router.lifespan_context(app).__aenter__())
+        await asyncio.wait_for(started.wait(), 1)
+        self.assertEqual(app.state.cpkit_runtime.workers, (worker,))
+        self.close.assert_not_called()
+        release.set()
+        with self.assertRaisesRegex(RuntimeError, "startup failed"):
+            await entering
+        self.assertTrue(app.state.cpkit_runtime.status.complete)
+        self.assertEqual(self.events, ["handler_used_pool", "close"])
+        self.assertEqual(len(calls), 1)
+
+    async def test_direct_worker_is_retained_when_startup_hook_dispatches_then_fails(
+        self,
+    ):
+        await self._check_direct_worker_startup_failure(lazy=False)
+
+    async def test_iterable_worker_is_retained_when_startup_hook_dispatches_then_fails(
+        self,
+    ):
+        await self._check_direct_worker_startup_failure(lazy=True)

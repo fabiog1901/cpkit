@@ -5,7 +5,6 @@ import inspect
 from collections.abc import Awaitable, Callable, Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -186,8 +185,15 @@ def create_cpkit_app(
     """Create a cpkit-managed FastAPI app with an application API subapp."""
     capability_tuple = tuple(capabilities if capabilities is not None else bundles)
 
-    bundle_background_tasks = tuple(
-        task for capability in capability_tuple for task in capability.background_tasks
+    # Register ownership before startup hooks can dispatch or fail. Factories
+    # are still invoked after startup; only their configuration is materialized.
+    effective_background_tasks = (
+        *(
+            task
+            for capability in capability_tuple
+            for task in capability.background_tasks
+        ),
+        *background_tasks,
     )
     workers = tuple(
         dict.fromkeys(
@@ -199,7 +205,7 @@ def create_cpkit_app(
                 ),
                 *(
                     factory
-                    for factory in bundle_background_tasks
+                    for factory in effective_background_tasks
                     if isinstance(factory, QueueWorker)
                 ),
             )
@@ -249,12 +255,7 @@ def create_cpkit_app(
                     await result
 
             # Keep already-created tasks reachable if a later factory fails.
-            for task_factory in chain(bundle_background_tasks, background_tasks):
-                if (
-                    isinstance(task_factory, QueueWorker)
-                    and task_factory not in runtime.workers
-                ):
-                    runtime.workers = (*runtime.workers, task_factory)
+            for task_factory in effective_background_tasks:
                 runtime._tasks.append(asyncio.create_task(task_factory()))
             yield
         except BaseException as err:

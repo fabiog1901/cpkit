@@ -82,8 +82,11 @@ calls can delay event-loop timeouts, so the budget is not a hard process-exit
 or handler-termination deadline.
 
 Workers are discovered through `bundle.queue_worker` and `QueueWorker` instances
-registered directly as background factories. Register workers explicitly rather
-than hiding their ownership inside closures. Custom background tasks retain their
+registered directly as background factories. Background factory iterables are
+materialized when the app is created, so direct workers are retained before
+startup hooks can dispatch or fail. The factories themselves are invoked after
+startup hooks. Register workers explicitly rather than hiding their ownership
+inside closures. Custom background tasks retain their
 normal coroutine cancellation contract; CPKit does not infer external work they
 may have started. The shared database/repository configuration remains application
 wide, and worker instances remain single-use.
