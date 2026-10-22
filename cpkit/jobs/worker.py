@@ -5,6 +5,7 @@ import concurrent.futures
 import logging
 import random
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from psycopg import IntegrityError
@@ -48,6 +49,212 @@ class QueueDispatchError(RuntimeError):
         )
 
 
+@dataclass(frozen=True)
+class HandlerOutcome:
+    """Handler and failure-hook results after both have returned."""
+
+    error: Exception | None = None
+    failure_hook_error: Exception | None = None
+
+
+@dataclass(frozen=True, eq=False)
+class HandlerCompletion:
+    """Non-cancelling access to one actual executor invocation."""
+
+    message: QueueMessage
+    payload: Any
+    _future: concurrent.futures.Future[HandlerOutcome] = field(repr=False)
+
+    @property
+    def done(self) -> bool:
+        return self._future.done()
+
+    def result(self) -> HandlerOutcome:
+        """Return the outcome, or raise TimeoutError if still running."""
+        return self._future.result(timeout=0)
+
+    async def wait(self, timeout: float | None = None) -> HandlerOutcome:
+        """Wait without allowing timeout/cancellation to cancel the handler."""
+        if self.done:
+            return self.result()
+        waiter = asyncio.wrap_future(self._future)
+        # A cancelled caller may never retrieve an unexpected executor exception.
+        waiter.add_done_callback(_observe_waiter)
+        return await asyncio.wait_for(asyncio.shield(waiter), timeout)
+
+
+def _observe_waiter(waiter: asyncio.Future) -> None:
+    if not waiter.cancelled():
+        waiter.exception()
+
+
+@dataclass(frozen=True)
+class DrainResult:
+    """Unresolved invocations retain their original message and payload."""
+
+    polling_stopped: bool
+    unresolved: tuple[HandlerCompletion, ...]
+
+    @property
+    def complete(self) -> bool:
+        return self.polling_stopped and not self.unresolved
+
+
+class QueueWorker:
+    """Single-use poller with an owned executor and explicit handler lifetime.
+
+    Control methods belong to one asyncio event loop. Stopping is terminal.
+    A complete drain joins only this worker's executor, never the loop's default.
+    """
+
+    def __init__(
+        self,
+        *,
+        get_pool: Callable[[], Any],
+        handlers: Mapping[Any, QueueHandler] | None = None,
+        resolve_handler: ResolveHandler | None = None,
+        parse_message: ParseMessage | None = None,
+        handle_failure: FailureHandler | None = None,
+        recurring_messages: (
+            tuple[RecurringMessage, ...] | Callable[[], tuple[RecurringMessage, ...]]
+        ) = (),
+        poll_seconds: float = 5,
+        jitter_min: float = 0.7,
+        jitter_max: float = 1.3,
+    ):
+        self._get_pool = get_pool
+        self._handlers = handlers
+        self._resolve_handler = resolve_handler
+        self._parse_message = parse_message
+        self._handle_failure = handle_failure
+        self._recurring_messages = recurring_messages
+        self._poll_seconds = poll_seconds
+        self._jitter_min = jitter_min
+        self._jitter_max = jitter_max
+        self._stop = asyncio.Event()
+        self._polling_stopped = asyncio.Event()
+        self._polling_stopped.set()
+        self._started = False
+        self._executor: concurrent.futures.ThreadPoolExecutor | None = None
+        self._pending: set[HandlerCompletion] = set()
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    def _bind_loop(self) -> None:
+        loop = asyncio.get_running_loop()
+        if self._loop is not None and self._loop is not loop:
+            raise RuntimeError("QueueWorker controls must use the same event loop")
+        self._loop = loop
+
+    @property
+    def active_handlers(self) -> tuple[HandlerCompletion, ...]:
+        """Snapshot handles for queued/running handler invocations."""
+        return tuple(handle for handle in self._pending if not handle.done)
+
+    def stop_polling(self) -> None:
+        """Prevent further claims; leave submitted invocations untouched."""
+        self._bind_loop()
+        self._stop.set()
+
+    async def _wait_for_poll(self) -> bool:
+        delay = self._poll_seconds * random.uniform(self._jitter_min, self._jitter_max)
+        if self._stop.is_set():
+            return True
+        try:
+            await asyncio.wait_for(self._stop.wait(), timeout=delay)
+            return True
+        except TimeoutError:
+            return self._stop.is_set()
+
+    async def __call__(self) -> None:
+        await self.run()
+
+    async def run(self) -> None:
+        """Poll until stopped/cancelled; the owner must subsequently drain."""
+        self._bind_loop()
+        if self._started:
+            raise RuntimeError("QueueWorker can only be run once")
+        self._started = True
+        self._polling_stopped.clear()
+        try:
+            if self._stop.is_set():
+                return
+            recurring_messages = (
+                self._recurring_messages()
+                if callable(self._recurring_messages)
+                else self._recurring_messages
+            )
+            configs = recurring_message_map(recurring_messages)
+            while not await self._wait_for_poll():
+                try:
+                    prepared = _claim_and_prepare_dispatch(
+                        get_pool=self._get_pool,
+                        recurring_configs=configs,
+                        handlers=self._handlers,
+                        resolve_handler=self._resolve_handler,
+                        parse_message=self._parse_message,
+                    )
+                    if prepared is None:
+                        continue
+                    message, handler, payload = prepared
+                    try:
+                        if self._executor is None:
+                            self._executor = concurrent.futures.ThreadPoolExecutor(
+                                thread_name_prefix="cpkit-queue"
+                            )
+                        future = self._executor.submit(
+                            _run_queue_handler,
+                            message,
+                            handler,
+                            payload,
+                            self._handle_failure,
+                        )
+                    except Exception as err:
+                        raise QueueDispatchError(message, "submission") from err
+                    handle = HandlerCompletion(message, payload, future)
+                    self._pending.add(handle)
+                    future.add_done_callback(_log_handler_crash)
+                    # Prune completed handles during continuous operation. A
+                    # caller retaining a handle can still inspect its outcome.
+                    self._pending = set(self.active_handlers)
+                except QueueDispatchError as err:
+                    logger.exception("Queue dispatch failed: %s", err)
+                    if err.phase != "commit_rejected":
+                        raise
+                except Exception:
+                    logger.exception(
+                        "Unexpected failure while polling the message queue"
+                    )
+        finally:
+            self._stop.set()
+            self._polling_stopped.set()
+
+    async def drain(self, timeout: float | None = None) -> DrainResult:
+        """Stop polling and join actual work, or return unresolved handles.
+
+        Timeout/cancellation never cancels executor work. A later call can
+        complete the drain. Synchronous claim code can delay event-loop timers.
+        """
+        self.stop_polling()
+        try:
+            async with asyncio.timeout(timeout):
+                await self._polling_stopped.wait()
+                handles = self.active_handlers
+                if handles:
+                    # wait() insulates the concurrent futures from cancellation.
+                    await asyncio.gather(
+                        *(handle.wait() for handle in handles), return_exceptions=True
+                    )
+        except TimeoutError:
+            pass
+        unresolved = self.active_handlers
+        self._pending = set(unresolved)
+        stopped = self._polling_stopped.is_set()
+        if stopped and not unresolved and self._executor is not None:
+            self._executor.shutdown(wait=True)
+            self._executor = None
+        return DrainResult(stopped, unresolved)
+
+
 def create_queue_worker(
     *,
     get_pool: Callable[[], Any],
@@ -58,8 +265,8 @@ def create_queue_worker(
     handle_failure: FailureHandler | None = None,
     failed_status: str = "FAILED",
     recurring_messages: tuple[RecurringMessage, ...] | None = None,
-) -> Callable[[], Any]:
-    """Create a background task that polls the framework queue."""
+) -> QueueWorker:
+    """Create a callable, owned queue worker with stop/drain controls."""
     maintenance_handlers = {
         FAIL_ZOMBIE_JOBS_MESSAGE_TYPE: create_fail_zombie_jobs_handler(get_repo),
     }
@@ -73,27 +280,21 @@ def create_queue_worker(
         if handle_failure is not None:
             handle_failure(message, err)
 
-    async def pull_from_mq() -> None:
-        await run_queue_worker(
-            get_pool=get_pool,
-            resolve_handler=_resolve_worker_handler(
-                maintenance_handlers,
-                handlers,
-                resolve_handler,
-            ),
-            parse_message=_parse_worker_message(
-                maintenance_handlers,
-                parse_message,
-            ),
-            handle_failure=record_failure,
-            recurring_messages=(
-                recurring_messages
-                if recurring_messages is not None
-                else get_recurring_messages()
-            ),
-        )
-
-    return pull_from_mq
+    return QueueWorker(
+        get_pool=get_pool,
+        resolve_handler=_resolve_worker_handler(
+            maintenance_handlers,
+            handlers,
+            resolve_handler,
+        ),
+        parse_message=_parse_worker_message(maintenance_handlers, parse_message),
+        handle_failure=record_failure,
+        recurring_messages=(
+            recurring_messages
+            if recurring_messages is not None
+            else get_recurring_messages
+        ),
+    )
 
 
 def _resolve_worker_handler(
@@ -142,50 +343,36 @@ async def run_queue_worker(
     jitter_min: float = 0.7,
     jitter_max: float = 1.3,
 ) -> None:
-    """Continuously claim due queue messages and dispatch them to handlers."""
-    running_handlers: set[asyncio.Future] = set()
-    recurring_configs = recurring_message_map(recurring_messages)
-    try:
-        while True:
-            await asyncio.sleep(poll_seconds * random.uniform(jitter_min, jitter_max))
-            try:
-                loop = asyncio.get_running_loop()
-                prepared = _claim_and_prepare_dispatch(
-                    get_pool=get_pool,
-                    recurring_configs=recurring_configs,
-                    handlers=handlers,
-                    resolve_handler=resolve_handler,
-                    parse_message=parse_message,
-                )
-                if prepared is None:
-                    continue
-                message, handler, payload = prepared
-                try:
-                    future = loop.run_in_executor(
-                        None,
-                        _run_queue_handler,
-                        message,
-                        handler,
-                        payload,
-                        handle_failure,
-                    )
-                except Exception as err:
-                    raise QueueDispatchError(message, "submission") from err
-                running_handlers.add(future)
-                future.add_done_callback(running_handlers.discard)
-                future.add_done_callback(_log_handler_crash)
-            except QueueDispatchError as err:
-                logger.exception("Queue dispatch failed: %s", err)
-                if err.phase != "commit_rejected":
-                    raise
-            except Exception:
-                logger.exception("Unexpected failure while polling the message queue")
+    """Run a standalone worker and fully drain its owned executor on exit.
 
-    except asyncio.CancelledError:
-        logger.info("Queue worker was stopped")
-        for future in running_handlers:
-            future.cancel()
-        raise
+    Cancellation waits for real handler completion. Use QueueWorker directly
+    for a separately observable poller and bounded drain.
+    """
+    worker = QueueWorker(
+        get_pool=get_pool,
+        handlers=handlers,
+        resolve_handler=resolve_handler,
+        parse_message=parse_message,
+        handle_failure=handle_failure,
+        recurring_messages=recurring_messages,
+        poll_seconds=poll_seconds,
+        jitter_min=jitter_min,
+        jitter_max=jitter_max,
+    )
+    try:
+        await worker.run()
+    finally:
+        cancelled = False
+        while True:
+            try:
+                await worker.drain()
+                break
+            except asyncio.CancelledError:
+                # This convenience API has no external lifecycle owner. Even a
+                # repeated cancellation must not abandon its executor/handlers.
+                cancelled = True
+        if cancelled:
+            raise asyncio.CancelledError
 
 
 def _claim_and_prepare_dispatch(
@@ -337,11 +524,14 @@ def _run_queue_handler(
     handler: QueueHandler,
     payload: Any,
     handle_failure: FailureHandler | None,
-) -> None:
+) -> HandlerOutcome:
     job_id_token = _set_current_job_id(message)
+    error = None
+    failure_hook_error = None
     try:
         handler(message.msg_id, payload, message.created_by)
     except Exception as err:
+        error = err
         logger.exception(
             "Queue message %s failed during dispatch",
             message.msg_id,
@@ -349,7 +539,8 @@ def _run_queue_handler(
         if handle_failure is not None:
             try:
                 handle_failure(message, err)
-            except Exception:
+            except Exception as hook_err:
+                failure_hook_error = hook_err
                 logger.exception(
                     "Queue message %s failure hook failed",
                     message.msg_id,
@@ -357,9 +548,10 @@ def _run_queue_handler(
     finally:
         if job_id_token is not None:
             job_id_ctx.reset(job_id_token)
+    return HandlerOutcome(error, failure_hook_error)
 
 
-def _log_handler_crash(future: asyncio.Future) -> None:
+def _log_handler_crash(future: concurrent.futures.Future) -> None:
     try:
         future.result()
     except asyncio.CancelledError:

@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import unittest
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -15,7 +16,12 @@ from psycopg.pq import TransactionStatus
 from test_jobs_worker import FakeCursor, FakePool
 
 from cpkit.jobs.types import QueueMessage, RecurringMessage
-from cpkit.jobs.worker import QueueDispatchError, run_queue_worker
+from cpkit.jobs.worker import (
+    HandlerOutcome,
+    QueueDispatchError,
+    QueueWorker,
+    run_queue_worker,
+)
 
 
 def message(recurring=False):
@@ -76,17 +82,20 @@ class DispatchTests(unittest.IsolatedAsyncioTestCase):
     async def poll_once(self, pool, **kwargs):
         ticks = 0
 
-        async def tick(_seconds):
+        async def tick(_worker):
             nonlocal ticks
             ticks += 1
             if ticks > 1:
                 raise asyncio.CancelledError
+            return False
 
-        executor = Mock(return_value=asyncio.get_running_loop().create_future())
+        completed = concurrent.futures.Future()
+        completed.set_result(HandlerOutcome())
+        executor = Mock(return_value=completed)
         executor.side_effect = kwargs.pop("submit", None)
         with (
-            patch("cpkit.jobs.worker.asyncio.sleep", tick),
-            patch.object(asyncio.get_running_loop(), "run_in_executor", executor),
+            patch.object(QueueWorker, "_wait_for_poll", tick),
+            patch.object(concurrent.futures.ThreadPoolExecutor, "submit", executor),
             patch("cpkit.jobs.worker.logger.exception"),
         ):
             try:
@@ -107,11 +116,13 @@ class DispatchTests(unittest.IsolatedAsyncioTestCase):
             def submit(*args):
                 self.assertEqual(pool.events, ["commit", "connection_exit"])
                 self.assertEqual(pool.deleted, [] if recurring else [1])
-                return asyncio.get_running_loop().create_future()
+                completed = concurrent.futures.Future()
+                completed.set_result(HandlerOutcome())
+                return completed
 
             executor = await self.poll_once(pool, submit=submit)
             executor.assert_called_once()
-            self.assertEqual(executor.call_args.args[4], {"x": 1})
+            self.assertEqual(executor.call_args.args[3], {"x": 1})
 
     async def test_parser_and_resolver_refusal_preserve_queue(self):
         for recurring in (False, True):

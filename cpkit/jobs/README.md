@@ -76,6 +76,60 @@ CPKIT_WORKER_INTEGRATION_DB_URL='postgresql://localhost/cpkit_test' \
   poetry run python -m unittest discover -s tests -p 'test_jobs_dispatch_integration.py'
 ```
 
+## Handler Lifetime and Drain
+
+`create_queue_worker()` returns a callable `QueueWorker`, so existing background
+factories can still invoke `worker()`. Keep that object as the lifecycle owner.
+Alternatively, construct `QueueWorker` directly with the low-level handler/parser
+configuration and polling options.
+
+```python
+worker = create_queue_worker(
+    get_pool=get_pool, get_repo=get_repo, handlers=command_handlers,
+)
+poller = asyncio.create_task(worker())
+
+# Stop further claims, including interrupting a pending poll delay.
+worker.stop_polling()
+await poller
+result = await worker.drain(timeout=10)
+if not result.complete:
+    # Keep worker and shared pool alive. Inspect these handles and drain later.
+    unresolved = result.unresolved
+```
+
+Stopping is terminal: each worker can run once. Controls run on the same asyncio
+event loop as polling. `drain()` also requests stop, waits for polling to finish,
+then waits for actual submitted invocations. `DrainResult.complete` requires
+polling to have stopped and every invocation to have returned. An incomplete
+result retains the original unresolved `HandlerCompletion` objects, including
+message and parsed payload; shared resources must remain available. A cancelled
+drain raises `CancelledError` and leaves that same context on the worker. Retry
+`drain()` on that object after the handler can finish. Timeout bounds asynchronous
+waiting, not synchronous database calls or arbitrary handler termination.
+
+`worker.active_handlers` snapshots queued/running invocations. Retain a handle to
+inspect it after completion: `handle.done`, `await handle.wait(timeout=...)`, or
+`handle.result()` (raises `TimeoutError` while unfinished). Cancelling a waiter or
+timing out never cancels the underlying invocation. `HandlerOutcome.error` records
+a handler exception and `failure_hook_error` records a failure-hook exception;
+completion includes repository failure updates and the custom failure hook. An
+unexpected executor exception is raised by the handle. Completed handles are
+pruned during polling/drain, so continuous operation does not accumulate history.
+
+Each worker lazily creates its own thread executor. Poll cancellation/error stops
+new selection but does not cancel submitted work, including work waiting for a
+thread. A successful drain joins and disposes that executor. CPKit never shuts
+down the application's unrelated default executor. There is no force-stop of
+Python threads or external operations, automatic retry, or job-success override.
+
+The standalone `run_queue_worker()` convenience function has no external owner;
+it performs an unbounded drain before exiting, including on cancellation/error.
+Its cancellation can therefore wait indefinitely for arbitrary handler code.
+Use an explicitly retained worker for bounded drains and later observation.
+Applications owning worker objects must integrate stop/drain before closing their
+shared pool; merely cancelling a polling task is insufficient.
+
 ## Transactional Scheduling
 
 Applications can make job scheduling atomic with their own database writes by

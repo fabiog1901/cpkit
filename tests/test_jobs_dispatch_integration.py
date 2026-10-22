@@ -162,8 +162,8 @@ class ConsumerIntegrationTests(unittest.IsolatedAsyncioTestCase):
     async def test_postcommit_executor_failure_does_not_restore_message(self):
         job_id = self.enqueue()
         with patch.object(
-            asyncio.get_running_loop(),
-            "run_in_executor",
+            ThreadPoolExecutor,
+            "submit",
             side_effect=RuntimeError("closed"),
         ) as submit:
             with self.assertRaises(QueueDispatchError) as caught:
@@ -205,7 +205,7 @@ class ConsumerIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
                     yield UncertainConnection()
 
-        with patch.object(asyncio.get_running_loop(), "run_in_executor") as submit:
+        with patch.object(ThreadPoolExecutor, "submit") as submit:
             with self.assertRaises(QueueDispatchError) as caught:
                 await run_queue_worker(
                     get_pool=UncertainPool,
