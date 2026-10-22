@@ -150,6 +150,11 @@ class QueueWorker:
         """Snapshot handles for queued/running handler invocations."""
         return tuple(handle for handle in self._pending if not handle.done)
 
+    @property
+    def polling_stopped(self) -> bool:
+        """Whether no polling invocation is currently executing."""
+        return self._polling_stopped.is_set()
+
     def stop_polling(self) -> None:
         """Prevent further claims; leave submitted invocations untouched."""
         self._bind_loop()

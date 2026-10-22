@@ -1,7 +1,7 @@
 """Reusable control-plane framework primitives."""
 
 from .admin import create_cpkit_admin_router
-from .app import create_cpkit_app
+from .app import AppRuntime, AppShutdownIncomplete, ShutdownResult, create_cpkit_app
 from .bundle import CpkitBundle, create_cpkit_bundle
 from .cli import ApplicationCLI
 from .dependencies import (
@@ -27,6 +27,9 @@ from .webapp import template_webapp_directory
 __all__ = [
     "CPKitRepo",
     "ApplicationCLI",
+    "AppRuntime",
+    "AppShutdownIncomplete",
+    "ShutdownResult",
     "CpkitBundle",
     "PlaybookRunOptions",
     "RecurringMessage",

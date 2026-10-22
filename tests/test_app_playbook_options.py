@@ -55,6 +55,7 @@ class AppPlaybookOptionsTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch("cpkit.app.initialize_postgres"),
+            patch("cpkit.app.get_pool", return_value=object()),
             patch("cpkit.app.configure_repository"),
             patch("cpkit.app.get_configured_repo", return_value=repo),
             patch("cpkit.app.configure_logging"),
@@ -84,6 +85,7 @@ class AppPlaybookOptionsTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch("cpkit.app.initialize_postgres"),
+            patch("cpkit.app.get_pool", return_value=object()),
             patch("cpkit.app.configure_repository"),
             patch("cpkit.app.get_configured_repo", return_value=repo),
             patch("cpkit.app.configure_logging"),

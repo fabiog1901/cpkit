@@ -22,7 +22,7 @@ python tools/codemap.py --write
 
 | Package | Modules | Classes | Functions | Routes |
 | --- | ---: | ---: | ---: | ---: |
-| `cpkit` | 67 | 90 | 74 | 0 |
+| `cpkit` | 67 | 93 | 74 | 0 |
 
 ## API Routes
 
@@ -38,7 +38,7 @@ python tools/codemap.py --write
 | --- | --- |
 | `cpkit/__init__.py` | Reusable control-plane framework primitives. |
 | `cpkit/admin.py` | Admin router assembly for framework-owned capabilities.; functions: create_cpkit_admin_router |
-| `cpkit/app.py` | FastAPI application bootstrap helpers.; functions: create_cpkit_app |
+| `cpkit/app.py` | FastAPI application bootstrap helpers.; classes: ShutdownResult, AppShutdownIncomplete, AppRuntime; functions: create_cpkit_app |
 | `cpkit/audit/__init__.py` | Generic audit record types and service helpers. |
 | `cpkit/audit/events_service.py` | Service helpers for framework audit event reads.; classes: AuditEventsService |
 | `cpkit/audit/recorder.py` | Audit recording helpers for application-owned audit record models.; classes: AuditRecordWriter, AuditRecorder; functions: write_audit_record, write_audit_record_best_effort, build_audit_log_record, configure_audit_logging, create_audit_event_hook, log_event |

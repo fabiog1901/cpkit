@@ -21,6 +21,9 @@ repository exceptions.
    `fetch_scalar()`, and `execute_stmt()`.
 3. Database exceptions are translated into `cpkit.errors.repository` types.
 4. Service layers translate repository errors into user-facing service errors.
+5. Application shutdown drains registered queue handlers before closing the pool.
+   An incomplete or cancelled shutdown retains it for later cleanup through
+   `app.state.cpkit_runtime`; see [Application Shutdown](../README.md#application-shutdown).
 
 ## Explicit Transactions
 

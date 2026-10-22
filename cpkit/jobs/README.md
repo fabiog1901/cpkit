@@ -127,8 +127,9 @@ The standalone `run_queue_worker()` convenience function has no external owner;
 it performs an unbounded drain before exiting, including on cancellation/error.
 Its cancellation can therefore wait indefinitely for arbitrary handler code.
 Use an explicitly retained worker for bounded drains and later observation.
-Applications owning worker objects must integrate stop/drain before closing their
-shared pool; merely cancelling a polling task is insufficient.
+The standard application lifespan integrates stop/drain for registered workers
+before closing its shared pool; see [Application Shutdown](../README.md#application-shutdown).
+Standalone consumers must likewise retain their worker and complete its drain.
 
 ## Scoped Consumption
 

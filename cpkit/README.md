@@ -30,6 +30,64 @@ The main app flow is:
 5. The shared webapp in `webapp/` talks to the framework API routes and can be
    extended by app-owned web assets.
 
+## Application Shutdown
+
+`create_cpkit_app()` owns application background tasks and the standard bundle's
+registered queue worker. Shutdown stops polling, cancels/observes background
+tasks, drains actual handler invocations and failure hooks, joins the workers'
+executors, then closes the shared database pool. Startup failure and lifespan
+exceptions use the same cleanup path. Completed background-task failures are
+surfaced after cleanup; simultaneous application/background failures are grouped.
+A handler failure continues to use its registered failure hook and job status.
+
+The default `shutdown_timeout=None` waits for completion. Configure a finite
+asynchronous wait budget when the host needs an observable incomplete shutdown:
+
+```python
+app = create_cpkit_app(
+    title="Control Plane", version="1", db_url=db_url,
+    get_repo=get_repo, bundles=(bundle,), shutdown_timeout=10,
+)
+```
+
+An expired budget raises `AppShutdownIncomplete`, whose `runtime` and `result`
+retain the original owner and snapshot. Shutdown cancellation propagates
+`CancelledError`. In either case the owner remains at
+`app.state.cpkit_runtime`; incomplete work keeps the pool open. After the handler
+can finish, use the same event loop to observe and retry cleanup:
+
+```python
+runtime = app.state.cpkit_runtime
+status = runtime.status
+# status.unresolved contains original HandlerCompletion objects.
+# status.pending_tasks and status.task_errors describe app background tasks.
+result = await runtime.shutdown(timeout=10)
+if result.complete:
+    assert result.pool_closed
+```
+
+`runtime.pool` retains the original pool reference. Repeated shutdown calls
+continue draining, rather than re-dispatching work or repeatedly cancelling task
+cleanup. The pool is closed once, after a completed drain. If the globally
+configured pool has been replaced, the retained owner refuses to close the
+replacement. An unfinished runtime cannot be overwritten by re-entering the same
+app's lifespan.
+
+A cancelled lifespan body requests stop and checks cleanup without waiting before
+propagating cancellation. A cancellation during cleanup interrupts waiting. Both
+leave unfinished cleanup available through the runtime. Keep the event loop and
+shared resources alive until a later shutdown completes. CPKit cannot terminate
+arbitrary handler threads or external operations. Synchronous database/cleanup
+calls can delay event-loop timeouts, so the budget is not a hard process-exit
+or handler-termination deadline.
+
+Workers are discovered through `bundle.queue_worker` and `QueueWorker` instances
+registered directly as background factories. Register workers explicitly rather
+than hiding their ownership inside closures. Custom background tasks retain their
+normal coroutine cancellation contract; CPKit does not infer external work they
+may have started. The shared database/repository configuration remains application
+wide, and worker instances remain single-use.
+
 ## Architecture Review
 
 The current flat capability layout is reasonable for cpkit's size. It keeps
