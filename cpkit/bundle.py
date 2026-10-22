@@ -20,7 +20,7 @@ from .db import get_pool
 from .dependencies import configure_cpkit_dependencies
 from .errors import ServiceError, raise_http_from_service_error
 from .jobs import JobsService, QueueMessage, create_jobs_router, create_queue_worker
-from .jobs.worker import QueueHandler
+from .jobs.worker import QueueHandler, QueueWorker
 from .playbooks import PlaybooksService
 from .repository import get_repo
 from .settings import SettingsService
@@ -41,6 +41,7 @@ class CpkitBundle:
     routers: tuple[APIRouter, ...]
     startup_hooks: tuple[Callable[[], Any], ...]
     background_tasks: tuple[Callable[[], Any], ...]
+    queue_worker: QueueWorker | None = None
 
     @property
     def require_authenticated(self):
@@ -182,6 +183,7 @@ def create_cpkit_bundle(
         ),
         startup_hooks=(validate_auth_config,),
         background_tasks=(queue_worker,),
+        queue_worker=queue_worker,
     )
     configure_cpkit_dependencies(bundle)
     return bundle

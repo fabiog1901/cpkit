@@ -168,54 +168,107 @@ class QueueWorker:
     async def __call__(self) -> None:
         await self.run()
 
-    async def run(self) -> None:
-        """Poll until stopped/cancelled; the owner must subsequently drain."""
+    def _begin(self) -> None:
         self._bind_loop()
         if self._started:
             raise RuntimeError("QueueWorker can only be run once")
         self._started = True
         self._polling_stopped.clear()
+
+    def _finish(self) -> None:
+        self._stop.set()
+        self._polling_stopped.set()
+
+    def _recurring_configs(self) -> Mapping[str, RecurringMessage]:
+        messages = (
+            self._recurring_messages()
+            if callable(self._recurring_messages)
+            else self._recurring_messages
+        )
+        return recurring_message_map(messages)
+
+    def _dispatch(
+        self,
+        configs: Mapping[str, RecurringMessage],
+        *,
+        message_id: int | None = None,
+        expected_type: str | None = None,
+        expected_actor: str | None = None,
+    ) -> HandlerCompletion | None:
+        prepared = _claim_and_prepare_dispatch(
+            get_pool=self._get_pool,
+            recurring_configs=configs,
+            handlers=self._handlers,
+            resolve_handler=self._resolve_handler,
+            parse_message=self._parse_message,
+            message_id=message_id,
+            expected_type=expected_type,
+            expected_actor=expected_actor,
+        )
+        if prepared is None:
+            return None
+        message, handler, payload = prepared
+        try:
+            if self._executor is None:
+                self._executor = concurrent.futures.ThreadPoolExecutor(
+                    thread_name_prefix="cpkit-queue"
+                )
+            future = self._executor.submit(
+                _run_queue_handler,
+                message,
+                handler,
+                payload,
+                self._handle_failure,
+            )
+        except Exception as err:
+            raise QueueDispatchError(message, "submission") from err
+        handle = HandlerCompletion(message, payload, future)
+        self._pending.add(handle)
+        future.add_done_callback(_log_handler_crash)
+        # A retained handle remains usable after it leaves the active set.
+        self._pending = set(self.active_handlers)
+        return handle
+
+    async def dispatch_one(
+        self,
+        *,
+        message_id: int,
+        include_recurring: bool = False,
+        expected_type: str | None = None,
+        expected_actor: str | None = None,
+    ) -> HandlerCompletion | None:
+        """Attempt one due ID, using the registered parser/handler and lifecycle.
+
+        No polling/retry or follow-up selection occurs. Return None for absent,
+        not-due, locked, excluded, or mismatched work. Parsing/resolution/commit
+        errors propagate. Parsing/resolution failures roll back; commit and
+        submission errors retain QueueDispatchError phases. The owner must drain.
+        """
+        if isinstance(message_id, bool) or not isinstance(message_id, int):
+            raise TypeError("message_id must be an integer")
+        self._begin()
+        try:
+            if self._stop.is_set():
+                return None
+            return self._dispatch(
+                self._recurring_configs() if include_recurring else {},
+                message_id=message_id,
+                expected_type=expected_type,
+                expected_actor=expected_actor,
+            )
+        finally:
+            self._finish()
+
+    async def run(self) -> None:
+        """Poll until stopped/cancelled; the owner must subsequently drain."""
+        self._begin()
         try:
             if self._stop.is_set():
                 return
-            recurring_messages = (
-                self._recurring_messages()
-                if callable(self._recurring_messages)
-                else self._recurring_messages
-            )
-            configs = recurring_message_map(recurring_messages)
+            configs = self._recurring_configs()
             while not await self._wait_for_poll():
                 try:
-                    prepared = _claim_and_prepare_dispatch(
-                        get_pool=self._get_pool,
-                        recurring_configs=configs,
-                        handlers=self._handlers,
-                        resolve_handler=self._resolve_handler,
-                        parse_message=self._parse_message,
-                    )
-                    if prepared is None:
-                        continue
-                    message, handler, payload = prepared
-                    try:
-                        if self._executor is None:
-                            self._executor = concurrent.futures.ThreadPoolExecutor(
-                                thread_name_prefix="cpkit-queue"
-                            )
-                        future = self._executor.submit(
-                            _run_queue_handler,
-                            message,
-                            handler,
-                            payload,
-                            self._handle_failure,
-                        )
-                    except Exception as err:
-                        raise QueueDispatchError(message, "submission") from err
-                    handle = HandlerCompletion(message, payload, future)
-                    self._pending.add(handle)
-                    future.add_done_callback(_log_handler_crash)
-                    # Prune completed handles during continuous operation. A
-                    # caller retaining a handle can still inspect its outcome.
-                    self._pending = set(self.active_handlers)
+                    self._dispatch(configs)
                 except QueueDispatchError as err:
                     logger.exception("Queue dispatch failed: %s", err)
                     if err.phase != "commit_rejected":
@@ -225,8 +278,7 @@ class QueueWorker:
                         "Unexpected failure while polling the message queue"
                     )
         finally:
-            self._stop.set()
-            self._polling_stopped.set()
+            self._finish()
 
     async def drain(self, timeout: float | None = None) -> DrainResult:
         """Stop polling and join actual work, or return unresolved handles.
@@ -382,6 +434,9 @@ def _claim_and_prepare_dispatch(
     handlers: Mapping[Any, QueueHandler] | None,
     resolve_handler: ResolveHandler | None,
     parse_message: ParseMessage | None,
+    message_id: int | None = None,
+    expected_type: str | None = None,
+    expected_actor: str | None = None,
 ) -> tuple[QueueMessage, QueueHandler, Any] | None:
     """Resolve/parse and commit disposition without executing application work."""
     message = None
@@ -396,9 +451,18 @@ def _claim_and_prepare_dispatch(
             try:
                 with conn.transaction():
                     with conn.cursor(row_factory=class_row(QueueMessage)) as cur:
-                        message = _claim_due_recurring_message(cur, recurring_configs)
+                        selection = dict(
+                            message_id=message_id,
+                            expected_type=expected_type,
+                            expected_actor=expected_actor,
+                        )
+                        message = _claim_due_recurring_message(
+                            cur,
+                            recurring_configs,
+                            **selection,
+                        )
                         if message is None:
-                            message = _claim_due_message(cur)
+                            message = _claim_due_message(cur, **selection)
                         if message is None:
                             return None
                         logger.info(
@@ -449,24 +513,62 @@ def _claim_and_prepare_dispatch(
     return message, handler, payload
 
 
-def _claim_due_message(cur) -> QueueMessage | None:
-    return cur.execute(f"""
+def _selection_conditions(
+    message_id: int | None,
+    expected_type: str | None,
+    expected_actor: str | None,
+) -> tuple[str, tuple]:
+    conditions = []
+    values = []
+    for column, value in (
+        ("msg_id", message_id),
+        ("msg_type", expected_type),
+        ("created_by", expected_actor),
+    ):
+        if value is not None:
+            conditions.append(f" AND {column} = %s")
+            values.append(value)
+    return "".join(conditions), tuple(values)
+
+
+def _claim_due_message(
+    cur,
+    *,
+    message_id: int | None = None,
+    expected_type: str | None = None,
+    expected_actor: str | None = None,
+) -> QueueMessage | None:
+    conditions, values = _selection_conditions(
+        message_id, expected_type, expected_actor
+    )
+    return cur.execute(
+        f"""
         SELECT *
         FROM {QUEUE_TABLE}
         WHERE is_recurring = false
             AND now() > start_after
+            {conditions}
         LIMIT 1
         FOR UPDATE SKIP LOCKED
-        """).fetchone()
+        """,
+        values,
+    ).fetchone()
 
 
 def _claim_due_recurring_message(
     cur,
     recurring_configs: Mapping[str, RecurringMessage],
+    *,
+    message_id: int | None = None,
+    expected_type: str | None = None,
+    expected_actor: str | None = None,
 ) -> QueueMessage | None:
     if not recurring_configs:
         return None
 
+    conditions, values = _selection_conditions(
+        message_id, expected_type, expected_actor
+    )
     message = cur.execute(
         f"""
         SELECT *
@@ -474,11 +576,12 @@ def _claim_due_recurring_message(
         WHERE is_recurring = true
             AND msg_type = ANY(%s)
             AND now() > start_after
+            {conditions}
         ORDER BY start_after
         LIMIT 1
         FOR UPDATE SKIP LOCKED
         """,
-        (list(recurring_configs),),
+        (list(recurring_configs), *values),
     ).fetchone()
     if message is None:
         return None

@@ -130,6 +130,50 @@ Use an explicitly retained worker for bounded drains and later observation.
 Applications owning worker objects must integrate stop/drain before closing their
 shared pool; merely cancelling a polling task is insufficient.
 
+## Scoped Consumption
+
+The standard bundle exposes `bundle.queue_worker`, the same `QueueWorker`
+instance stored in its background factories. For a controlled consumer, choose
+one queued ID instead of starting background polling:
+
+```python
+worker = bundle.queue_worker
+handle = await worker.dispatch_one(
+    message_id=job_id,
+    expected_type="RECONCILE",
+    expected_actor=actor_id,
+    include_recurring=False,
+)
+if handle is not None:
+    outcome = await handle.wait(timeout=10)
+result = await worker.drain(timeout=10)
+```
+
+`message_id` is required. The consumer attempts at most that single due row and
+returns its actual completion handle; it does not poll, select a replacement, or
+dispatch follow-up enqueues. `None` means the ID was absent, not due, locked by
+another consumer, excluded, or failed an optional type/actor expectation. These
+expectations filter selection inside the claim transaction; rejected and
+unselected rows remain unchanged. Resolver/parser failures propagate and roll
+back disposition. Commit/submission failures retain the phases documented above.
+
+Recurring rows are excluded by default. With `include_recurring=True`, only the
+specified ID can participate, and a recurring row must also have a registered
+schedule. Successful recurring claims retain normal rescheduling semantics,
+including built-in framework maintenance. This option never admits other due
+recurring rows.
+
+Both scoped and continuous modes use the identical registered parser, handler,
+actor, commit boundary, executor, and completion/drain lifecycle. Each worker is
+single-use: choose `dispatch_one()` or continuous background polling, then drain
+before closing shared resources. Custom bundles may have `queue_worker=None`.
+
+Application policy checks belong before requesting dispatch. This API supplies
+ID/type/actor guards, rather than an arbitrary admission callback or two-phase
+inspection protocol. It parses the latest locked payload and does not certify
+that it matches a payload inspected earlier. It does not accept replacement
+payloads or actors. Keep custom parsers/resolvers local and free of remote I/O.
+
 ## Transactional Scheduling
 
 Applications can make job scheduling atomic with their own database writes by
