@@ -22,7 +22,7 @@ python tools/codemap.py --write
 
 | Package | Modules | Classes | Functions | Routes |
 | --- | ---: | ---: | ---: | ---: |
-| `cpkit` | 67 | 85 | 74 | 0 |
+| `cpkit` | 67 | 86 | 74 | 0 |
 
 ## API Routes
 
@@ -82,7 +82,7 @@ python tools/codemap.py --write
 | `cpkit/jobs/router.py` | FastAPI routes for framework job management.; functions: create_jobs_router |
 | `cpkit/jobs/service.py` | Service helpers for framework job history and rescheduling.; classes: JobsService |
 | `cpkit/jobs/types.py` | Generic job queue data types.; classes: QueueMessage, RecurringMessage, JobID, IntID, LinkedResourceRef, JobStatsResponse, Job, Task, JobDetailsResponse, JobRescheduleResponse |
-| `cpkit/jobs/worker.py` | Generic queue worker loop.; functions: create_queue_worker, run_queue_worker |
+| `cpkit/jobs/worker.py` | Generic queue worker loop.; classes: QueueDispatchError; functions: create_queue_worker, run_queue_worker |
 | `cpkit/logging/__init__.py` | Logging setup and request context helpers. |
 | `cpkit/logging/context.py` | Request-aware logging context.; classes: RequestIDFilter, ShorthandFormatter |
 | `cpkit/logging/middleware.py` | FastAPI request logging middleware helpers.; functions: request_logging_middleware |

@@ -5,8 +5,10 @@ import concurrent.futures
 import logging
 import random
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, Literal
 
+from psycopg import IntegrityError
+from psycopg.pq import TransactionStatus
 from psycopg.rows import class_row
 
 from cpkit.audit import job_id_ctx
@@ -22,6 +24,28 @@ QueueHandler = Callable[[int, Any, str], None]
 ResolveHandler = Callable[[QueueMessage], QueueHandler | None]
 ParseMessage = Callable[[QueueMessage], Any]
 FailureHandler = Callable[[QueueMessage, Exception], None]
+
+
+class QueueDispatchError(RuntimeError):
+    """A selected message could not safely proceed to handler submission.
+
+    The original database/executor exception is available as ``__cause__``.
+    Unknown or committed outcomes require reconciliation before restarting.
+    """
+
+    def __init__(
+        self,
+        message: QueueMessage,
+        phase: Literal[
+            "commit_rejected", "commit_unknown", "committed_cleanup", "submission"
+        ],
+    ):
+        self.message = message
+        self.phase = phase
+        super().__init__(
+            f"Queue message {message.msg_id} ({message.msg_type}): {phase}; "
+            "handler not submitted"
+        )
 
 
 def create_queue_worker(
@@ -126,51 +150,34 @@ async def run_queue_worker(
             await asyncio.sleep(poll_seconds * random.uniform(jitter_min, jitter_max))
             try:
                 loop = asyncio.get_running_loop()
-                with get_pool().connection() as conn:
-                    with conn.cursor(row_factory=class_row(QueueMessage)) as cur:
-                        with conn.transaction():
-                            message = _claim_due_recurring_message(
-                                cur,
-                                recurring_configs,
-                            )
-                            delete_after_dispatch = message is None
-                            if message is None:
-                                message = _claim_due_message(cur)
-                            if message is None:
-                                continue
-
-                            logger.info(
-                                "Processing queue message %s of type %s",
-                                message.msg_id,
-                                message.msg_type,
-                            )
-
-                            handler = _resolve_handler(
-                                message,
-                                handlers=handlers,
-                                resolve_handler=resolve_handler,
-                            )
-                            payload = (
-                                parse_message(message)
-                                if parse_message is not None
-                                else message.msg_data
-                            )
-                            future = loop.run_in_executor(
-                                None,
-                                _run_queue_handler,
-                                message,
-                                handler,
-                                payload,
-                                handle_failure,
-                            )
-                            running_handlers.add(future)
-                            future.add_done_callback(running_handlers.discard)
-                            future.add_done_callback(_log_handler_crash)
-                            if delete_after_dispatch:
-                                cur.execute(
-                                    f"DELETE FROM {QUEUE_TABLE} WHERE msg_id = %s;",
-                                    (message.msg_id,),
-                                )
+                prepared = _claim_and_prepare_dispatch(
+                    get_pool=get_pool,
+                    recurring_configs=recurring_configs,
+                    handlers=handlers,
+                    resolve_handler=resolve_handler,
+                    parse_message=parse_message,
+                )
+                if prepared is None:
+                    continue
+                message, handler, payload = prepared
+                try:
+                    future = loop.run_in_executor(
+                        None,
+                        _run_queue_handler,
+                        message,
+                        handler,
+                        payload,
+                        handle_failure,
+                    )
+                except Exception as err:
+                    raise QueueDispatchError(message, "submission") from err
+                running_handlers.add(future)
+                future.add_done_callback(running_handlers.discard)
+                future.add_done_callback(_log_handler_crash)
+            except QueueDispatchError as err:
+                logger.exception("Queue dispatch failed: %s", err)
+                if err.phase != "commit_rejected":
+                    raise
             except Exception:
                 logger.exception("Unexpected failure while polling the message queue")
 
@@ -179,6 +186,80 @@ async def run_queue_worker(
         for future in running_handlers:
             future.cancel()
         raise
+
+
+def _claim_and_prepare_dispatch(
+    *,
+    get_pool: Callable[[], Any],
+    recurring_configs: Mapping[str, RecurringMessage],
+    handlers: Mapping[Any, QueueHandler] | None,
+    resolve_handler: ResolveHandler | None,
+    parse_message: ParseMessage | None,
+) -> tuple[QueueMessage, QueueHandler, Any] | None:
+    """Resolve/parse and commit disposition without executing application work."""
+    message = None
+    committing = False
+    committed = False
+    try:
+        with get_pool().connection() as conn:
+            # A nested transaction would only release a savepoint, not commit
+            # the claim. Require a fresh connection transaction for dispatch.
+            if conn.info.transaction_status != TransactionStatus.IDLE:
+                raise ValueError("Queue dispatch requires an idle connection")
+            try:
+                with conn.transaction():
+                    with conn.cursor(row_factory=class_row(QueueMessage)) as cur:
+                        message = _claim_due_recurring_message(cur, recurring_configs)
+                        if message is None:
+                            message = _claim_due_message(cur)
+                        if message is None:
+                            return None
+                        logger.info(
+                            "Preparing queue message %s of type %s",
+                            message.msg_id,
+                            message.msg_type,
+                        )
+                        handler = _resolve_handler(
+                            message,
+                            handlers=handlers,
+                            resolve_handler=resolve_handler,
+                        )
+                        payload = (
+                            parse_message(message)
+                            if parse_message is not None
+                            else message.msg_data
+                        )
+                        if not message.is_recurring:
+                            cur.execute(
+                                f"DELETE FROM {QUEUE_TABLE} WHERE msg_id = %s;",
+                                (message.msg_id,),
+                            )
+                    committing = True
+                committed = True
+            except Exception as err:
+                if committing:
+                    phase = (
+                        "commit_rejected"
+                        if (
+                            isinstance(err, IntegrityError)
+                            or getattr(err, "sqlstate", None)
+                            in {"40000", "40001", "40002", "40P01"}
+                        )
+                        else "commit_unknown"
+                    )
+                    raise QueueDispatchError(message, phase) from err
+                raise
+    except QueueDispatchError:
+        raise
+    except Exception as err:
+        if committed:
+            raise QueueDispatchError(message, "committed_cleanup") from err
+        if committing:
+            # Pool cleanup can replace the original commit exception. Never
+            # turn an uncertain commit into an ordinary polling retry.
+            raise QueueDispatchError(message, "commit_unknown") from err
+        raise
+    return message, handler, payload
 
 
 def _claim_due_message(cur) -> QueueMessage | None:

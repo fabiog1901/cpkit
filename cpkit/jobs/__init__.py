@@ -29,7 +29,7 @@ from .types import (
     RecurringMessage,
     Task,
 )
-from .worker import create_queue_worker, run_queue_worker
+from .worker import QueueDispatchError, create_queue_worker, run_queue_worker
 
 __all__ = [
     "FAIL_ZOMBIE_JOBS_MESSAGE_TYPE",
@@ -47,6 +47,7 @@ __all__ = [
     "LinkedResourceRef",
     "QUEUE_TABLE",
     "QueueMessage",
+    "QueueDispatchError",
     "QueueJobRepositoryMixin",
     "QueueRepositoryMixin",
     "RecurringMessage",

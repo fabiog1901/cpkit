@@ -21,12 +21,60 @@ jobs.
 
 1. App code enqueues work through the repository/service.
 2. The queue worker claims due messages from `cpkit.mq`.
-3. The worker resolves a handler and calls it with `(job_id, payload, created_by)`.
+3. The worker resolves a handler and parses the payload, then commits queue
+   deletion or recurring rescheduling before submitting the handler with
+   `(job_id, payload, created_by)`.
 4. Handlers update `cpkit.jobs` and write task rows as work progresses.
 5. The Jobs page reads job rows, task rows, and stats through the Jobs API.
 
 When a normal queue message is being processed, the worker sets the current
 audit job context so audit records can store the job id separately from details.
+
+## Claim and Dispatch Failures
+
+Each selection uses its own transaction on an idle pool connection. Handler
+submission happens after the transaction commits and the connection is returned.
+Handlers still run concurrently; the poller does not wait for handler completion.
+Resolvers and parsers must only resolve/validate work, without executing handlers
+or performing remote side effects. Refusal or a statement failure rolls back the
+selection, including any recurring reschedule, and invokes no handler. Unknown
+or malformed messages remain queued and may be encountered again on later polls.
+
+`QueueDispatchError` exposes the selected `message`, a `phase`, and the original
+exception through `__cause__`:
+
+| Phase | Meaning | Poller behavior |
+| --- | --- | --- |
+| `commit_rejected` | PostgreSQL explicitly rejected commit with an integrity or transaction rollback error. No handler was submitted. | Logs the failure and continues polling; rolled-back work remains eligible. |
+| `commit_unknown` | Commit did not return confirmation. Its outcome is uncertain. No handler was submitted. | Logs and raises, stopping this poller. |
+| `committed_cleanup` | Commit succeeded, but connection cleanup failed afterwards. No handler was submitted. | Logs and raises, stopping this poller. |
+| `submission` | Commit succeeded, but the executor rejected submission. | Logs and raises, stopping this poller. |
+
+Pre-commit failures are logged and polling continues. Submission failures do not
+run the handler-failure hook or mark the job as a handler failure. Once submitted,
+handler exceptions use the existing failure hook and do not restore the queue row.
+Callers supervising a worker must observe its task exception. Previously submitted
+handlers may still be running when a poller fails; stopping polling is not a join.
+
+This is not exactly-once execution or a durable dispatch guarantee. A process crash
+between commit and submission can lose a one-shot dispatch; an uncertain commit
+can leave the row present or absent. CPKit does not reinsert or immediately replay
+these selections. Before restarting a poller after an uncertain or committed
+failure, the operator must reconcile the identified queue/job and application
+state and decide whether a new attempt is safe. Recurring rows retain their normal
+future schedule after a successful commit. No schema or durable execution ledger
+is introduced.
+
+Consumer integration tests require `CPKIT_WORKER_INTEGRATION_DB_URL` pointing to a
+**disposable PostgreSQL database**. They clear `cpkit.mq` and exercise actual commit
+visibility, rollback, deferred commit rejection, serialization conflict, concurrent
+claims, handler failure, and a simulated lost acknowledgement after a real commit.
+For example:
+
+```sh
+CPKIT_WORKER_INTEGRATION_DB_URL='postgresql://localhost/cpkit_test' \
+  poetry run python -m unittest discover -s tests -p 'test_jobs_dispatch_integration.py'
+```
 
 ## Transactional Scheduling
 

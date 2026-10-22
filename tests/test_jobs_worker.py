@@ -2,7 +2,10 @@ import asyncio
 import threading
 import unittest
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from unittest.mock import patch
+
+from psycopg.pq import TransactionStatus
 
 from cpkit.jobs.types import QueueMessage, RecurringMessage
 from cpkit.jobs.worker import (
@@ -27,6 +30,7 @@ class FakePool:
 class FakeConnection:
     def __init__(self, pool):
         self.pool = pool
+        self.info = SimpleNamespace(transaction_status=TransactionStatus.IDLE)
 
     def __enter__(self):
         return self
